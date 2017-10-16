@@ -138,3 +138,7 @@ def train_model(model, dataloaders, dataset_sizes,
     # load best model weights
     model.load_state_dict(best_model_wts)
     return model
+
+
+if __name__ == '__main__':
+    train()
