@@ -1,21 +1,16 @@
+import pickle
 import numpy as np
 import cv2
 from pymongo import MongoClient
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from config import PRODUCT_COUNT
+import config
 
 
-def load_all_imgs_ids(mode):
-    assert mode in ('train', 'test')
-    res = list()
-    client = MongoClient(connect=False)
-    db = client.cdiscount[mode]
-    for product in tqdm(db.find(), total=PRODUCT_COUNT):
-        assert 1 <= len(product['imgs']) <= 4
-        for i in range(len(product['imgs'])):
-            res.append((product['_id'], i))
+def load_all_train_imgs_ids():
+    with open(config.IMG_IDS_PATH, 'rb') as f:
+        res = pickle.load(f)
     return res
 
 
@@ -26,7 +21,7 @@ class CdiscountDataset(Dataset):
         img_number between 0 and 3
         """
         assert mode in ('train', 'test')
-        assert isinstance(img_ids, np.array)
+        # assert isinstance(img_ids, np.array)
         self._img_ids = img_ids
         self._dataset_length = None
         self._transform = transform
