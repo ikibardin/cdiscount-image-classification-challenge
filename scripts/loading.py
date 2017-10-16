@@ -2,6 +2,21 @@ import numpy as np
 import cv2
 from pymongo import MongoClient
 from torch.utils.data import Dataset
+from tqdm import tqdm
+
+from config import PRODUCT_COUNT
+
+
+def load_all_imgs_ids(mode):
+    assert mode in ('train', 'test')
+    res = list()
+    client = MongoClient(connect=False)
+    db = client.cdiscount[mode]
+    for product in tqdm(db.find(), total=PRODUCT_COUNT):
+        assert 1 <= len(product['imgs']) <= 4
+        for i in range(len(product['imgs'])):
+            res.append((product['_id'], i))
+    return res
 
 
 class CdiscountDataset(Dataset):
@@ -38,5 +53,5 @@ class CdiscountDataset(Dataset):
 
     @staticmethod
     def _img_from_bytes(img_bytes):
-        np_img_str = np.fromstring(img_bytes, np.uint8)
+        np_img_str = np.fromstring(img_bytes, np.uint8).astype('float') / 255.
         return cv2.imdecode(np_img_str, cv2.IMREAD_COLOR)
