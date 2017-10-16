@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 class CdiscountDataset(Dataset):
     def __init__(self, img_ids, mode, transform=None):
         """
-        :param img_ids: np.array of tuples (product_id, img_number),
+        :param img_ids: list of tuples (product_id, img_number),
         img_number between 0 and 3
         """
         assert mode in ('train', 'test')
@@ -33,7 +33,7 @@ class CdiscountDataset(Dataset):
     def _calculate_length(self):
         if self._dataset_length is not None:
             return self._dataset_length
-        self._dataset_length = self._img_ids[:, 1].sum() + self._img_ids.shape[0]
+        self._dataset_length = len(self._img_ids)
         return self._dataset_length
 
     @staticmethod
