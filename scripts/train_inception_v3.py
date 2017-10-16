@@ -15,7 +15,7 @@ import config
 import loading
 from label_to_cat import LABEL_TO_CAT
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 
 
 def train():
@@ -24,9 +24,12 @@ def train():
                                             random_state=0)
     train_dataset = loading.CdiscountDataset(ids_train,
                                              'train',
-                                             transform=transforms.Scale(
-                                                 (299, 299))
-                                             )
+                                             transform=transforms.Compose([loading.resize,
+                                                                           transforms.ToTensor(),
+                                                                           transforms.Normalize([0.485, 0.456, 0.406],
+                                                                                                [0.229, 0.224, 0.225])
+                                                                           ]))
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=BATCH_SIZE,
@@ -34,8 +37,11 @@ def train():
         num_workers=4
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, 'train',
-                                             transform=transforms.Scale(
-                                                 (299, 299)))
+                                             transform=transforms.Compose([loading.resize,
+                                                                           transforms.ToTensor(),
+                                                                           transforms.Normalize([0.485, 0.456, 0.406],
+                                                                                                [0.229, 0.224, 0.225])
+                                                                               ]))
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=BATCH_SIZE,
@@ -100,7 +106,7 @@ def train_model(model, dataloaders, dataset_sizes,
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
-                outputs = model(inputs)
+                outputs = model(inputs.float())
                 _, preds = torch.max(outputs.data, 1)
                 loss = criterion(outputs, labels)
 

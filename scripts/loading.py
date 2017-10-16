@@ -6,6 +6,12 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 import config
+from label_to_cat import LABEL_TO_CAT
+
+def resize(img):
+    res = cv2.resize(img, (299, 299))
+    assert res is not None
+    return res
 
 
 def load_all_train_imgs_ids():
@@ -27,6 +33,7 @@ class CdiscountDataset(Dataset):
         self._transform = transform
         self._client = MongoClient(connect=False)
         self._db = self._client.cdiscount[mode]
+        self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
 
     def __len__(self):
         return self._calculate_length()
@@ -37,7 +44,7 @@ class CdiscountDataset(Dataset):
         img = self._img_from_bytes(product['imgs'][image_number]['picture'])
         if self._transform is not None:
             img = self._transform(img)
-        label = product['category_id']
+        label = self._cat_to_label[product['category_id']]
         return img, label
 
     def _calculate_length(self):
@@ -48,5 +55,8 @@ class CdiscountDataset(Dataset):
 
     @staticmethod
     def _img_from_bytes(img_bytes):
-        np_img_str = np.fromstring(img_bytes, np.uint8).astype('float') / 255.
-        return cv2.imdecode(np_img_str, cv2.IMREAD_COLOR)
+        np_img_str = np.fromstring(img_bytes, np.uint8)
+        img = cv2.imdecode(np_img_str, cv2.IMREAD_COLOR)
+        assert img is not None
+        # img = img.astype('float') / 255.
+        return img
