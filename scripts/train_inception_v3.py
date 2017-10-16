@@ -19,7 +19,7 @@ BATCH_SIZE = 128
 
 
 def train():
-    all_imgs_ids = loading.load_all_train_imgs_ids('train')
+    all_imgs_ids = loading.load_all_train_imgs_ids()
     ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=0.0001,
                                             random_state=0)
     train_dataset = loading.CdiscountDataset(ids_train,
