@@ -58,5 +58,5 @@ class CdiscountDataset(Dataset):
         np_img_str = np.fromstring(img_bytes, np.uint8)
         img = cv2.imdecode(np_img_str, cv2.IMREAD_COLOR)
         assert img is not None
-        # img = img.astype('float') / 255.
+        img = img.astype('float') / 255.
         return img

@@ -5,3 +5,4 @@ frogs-code/10-03/*
 frogs-code/10-07/*
 frogs-code/release/trained_models/LB=*
 .idea
+*.DS_Store
