@@ -16,7 +16,7 @@ import config
 import loading
 from label_to_cat import LABEL_TO_CAT
 
-BATCH_SIZE = 64
+BATCH_SIZE = 16
 EPOCHS = 3
 ITERS_PER_EPOCH = 1000
 
@@ -65,6 +65,7 @@ def train():
     }
 
     model = models.inception_v3(pretrained=True)
+    model.aux_logits = False
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
     assert torch.cuda.is_available()
@@ -74,12 +75,12 @@ def train():
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     model = train_model(model, dataloaders,
                         dataset_sizes, criterion,
-                        optimizer, exp_lr_scheduler, 35)
+                        optimizer, exp_lr_scheduler, EPOCHS)
 
 
 def train_model(model, dataloaders, dataset_sizes,
                 criterion, optimizer, scheduler,
-                num_epochs=EPOCHS):
+                num_epochs):
     since = time.time()
 
     best_model_wts = model.state_dict()
@@ -104,7 +105,8 @@ def train_model(model, dataloaders, dataset_sizes,
             if phase == 'train':
                 iternum = 0
             total_iters = ITERS_PER_EPOCH if phase == 'train' else \
-                dataset_sizes[phase]
+                np.ceil(dataset_sizes[phase] / float(BATCH_SIZE))
+
             for data in tqdm(dataloaders[phase], total=total_iters):
                 # get the inputs
                 if phase == 'train' and iternum == ITERS_PER_EPOCH:
@@ -122,6 +124,7 @@ def train_model(model, dataloaders, dataset_sizes,
                 outputs = model(inputs.float())
                 _, preds = torch.max(outputs.data, 1)
                 loss = criterion(outputs, labels)
+                # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
@@ -133,9 +136,12 @@ def train_model(model, dataloaders, dataset_sizes,
                 running_corrects += torch.sum(preds == labels.data)
                 if phase == 'train':
                     iternum += 1
-
-            epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_acc = running_corrects / dataset_sizes[phase]
+            if phase == 'test':
+                epoch_loss = running_loss / dataset_sizes[phase]
+                epoch_acc = running_corrects / dataset_sizes[phase]
+            else:
+                epoch_loss = running_loss / iternum
+                epoch_acc = running_corrects / iternum
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 phase, epoch_loss, epoch_acc))
