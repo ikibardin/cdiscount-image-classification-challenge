@@ -10,12 +10,15 @@ import torchvision
 from torchvision import datasets, models, transforms
 import time
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 import config
 import loading
 from label_to_cat import LABEL_TO_CAT
 
 BATCH_SIZE = 64
+EPOCHS = 3
+ITERS_PER_EPOCH = 1000
 
 
 def train():
@@ -24,11 +27,13 @@ def train():
                                             random_state=0)
     train_dataset = loading.CdiscountDataset(ids_train,
                                              'train',
-                                             transform=transforms.Compose([loading.resize,
-                                                                           transforms.ToTensor(),
-                                                                           transforms.Normalize([0.485, 0.456, 0.406],
-                                                                                                [0.229, 0.224, 0.225])
-                                                                           ]))
+                                             transform=transforms.Compose(
+                                                 [loading.resize,
+                                                  transforms.ToTensor(),
+                                                  transforms.Normalize(
+                                                      [0.485, 0.456, 0.406],
+                                                      [0.229, 0.224, 0.225])
+                                                  ]))
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -37,11 +42,13 @@ def train():
         num_workers=4
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, 'train',
-                                             transform=transforms.Compose([loading.resize,
-                                                                           transforms.ToTensor(),
-                                                                           transforms.Normalize([0.485, 0.456, 0.406],
-                                                                                                [0.229, 0.224, 0.225])
-                                                                               ]))
+                                             transform=transforms.Compose(
+                                                 [loading.resize,
+                                                  transforms.ToTensor(),
+                                                  transforms.Normalize(
+                                                      [0.485, 0.456, 0.406],
+                                                      [0.229, 0.224, 0.225])
+                                                  ]))
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=BATCH_SIZE,
@@ -72,7 +79,7 @@ def train():
 
 def train_model(model, dataloaders, dataset_sizes,
                 criterion, optimizer, scheduler,
-                num_epochs=25):
+                num_epochs=EPOCHS):
     since = time.time()
 
     best_model_wts = model.state_dict()
@@ -94,8 +101,14 @@ def train_model(model, dataloaders, dataset_sizes,
             running_corrects = 0
 
             # Iterate over data.
-            for data in dataloaders[phase]:
+            if phase == 'train':
+                iternum = 0
+            total_iters = ITERS_PER_EPOCH if phase == 'train' else \
+                dataset_sizes[phase]
+            for data in tqdm(dataloaders[phase], total=total_iters):
                 # get the inputs
+                if phase == 'train' and iternum == ITERS_PER_EPOCH:
+                    break
                 inputs, labels = data
 
                 # wrap them in Variable
@@ -118,6 +131,8 @@ def train_model(model, dataloaders, dataset_sizes,
                 # statistics
                 running_loss += loss.data[0]
                 running_corrects += torch.sum(preds == labels.data)
+                if phase == 'train':
+                    iternum += 1
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects / dataset_sizes[phase]
