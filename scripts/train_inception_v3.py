@@ -16,17 +16,23 @@ import config
 import loading
 from label_to_cat import LABEL_TO_CAT
 
-BATCH_SIZE = 32
-EPOCHS = 3
-ITERS_PER_EPOCH = 10000
+BATCH_SIZE = 80
+EPOCHS = 50
+ITERS_PER_EPOCH = 2000
+VALID_SIZE = 0.002
+
+PHASE_TRAIN = 'train'
+PHASE_VAL = 'val'
 
 
 def train():
     all_imgs_ids = loading.load_all_train_imgs_ids()
-    ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=0.001,
+    ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=VALID_SIZE,
                                             random_state=0)
+    print("Training on {} samples, validating on {} samples.".format(len(ids_train),
+                                                                     len(ids_valid)))
     train_dataset = loading.CdiscountDataset(ids_train,
-                                             'train',
+                                             PHASE_TRAIN,
                                              transform=transforms.Compose(
                                                  [loading.resize,
                                                   transforms.ToTensor(),
@@ -39,9 +45,9 @@ def train():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=4
+        num_workers=2
     )
-    valid_dataset = loading.CdiscountDataset(ids_valid, 'train',
+    valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
                                                  [loading.resize,
                                                   transforms.ToTensor(),
@@ -53,15 +59,15 @@ def train():
         valid_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=4
+        num_workers=2
     )
     dataloaders = {
-        'train': train_loader,
-        'val': valid_loader
+        PHASE_TRAIN: train_loader,
+        PHASE_VAL: valid_loader
     }
     dataset_sizes = {
-        'train': len(train_dataset),
-        'val': len(valid_dataset)
+        PHASE_TRAIN: len(train_dataset),
+        PHASE_VAL: len(valid_dataset)
     }
 
     model = models.inception_v3(pretrained=True)
@@ -69,6 +75,8 @@ def train():
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
     assert torch.cuda.is_available()
+    # model.cuda()
+    model = nn.DataParallel(model, device_ids=[0, 1])
     model.cuda()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
@@ -91,8 +99,8 @@ def train_model(model, dataloaders, dataset_sizes,
         print('-' * 20)
 
         # Each epoch has a training and validation phase
-        for phase in ['train', 'val']:
-            if phase == 'train':
+        for phase in [PHASE_TRAIN, PHASE_VAL]:
+            if phase == PHASE_TRAIN:
                 scheduler.step()
                 model.train(True)  # Set model to training mode
             else:
@@ -102,14 +110,14 @@ def train_model(model, dataloaders, dataset_sizes,
             running_corrects = 0
 
             # Iterate over data.
-            if phase == 'train':
+            if phase == PHASE_TRAIN:
                 iternum = 0
-            total_iters = ITERS_PER_EPOCH if phase == 'train' else \
+            total_iters = ITERS_PER_EPOCH if phase == PHASE_TRAIN else \
                 int(np.ceil(dataset_sizes[phase] / float(BATCH_SIZE)))
 
             for data in tqdm(dataloaders[phase], total=total_iters):
                 # get the inputs
-                if phase == 'train' and iternum == ITERS_PER_EPOCH:
+                if phase == PHASE_TRAIN and iternum == ITERS_PER_EPOCH:
                     break
                 inputs, labels = data
 
@@ -127,27 +135,29 @@ def train_model(model, dataloaders, dataset_sizes,
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
-                if phase == 'train':
+                if phase == PHASE_TRAIN:
                     loss.backward()
                     optimizer.step()
 
                 # statistics
                 running_loss += loss.data[0]
                 running_corrects += torch.sum(preds == labels.data)
-                if phase == 'train':
+                if phase == PHASE_TRAIN:
                     iternum += 1
-            if phase == 'test':
+            if phase == PHASE_VAL:
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects / dataset_sizes[phase]
+                # print("Dividing by", dataset_sizes[phase])
             else:
                 epoch_loss = running_loss / (iternum * BATCH_SIZE)
                 epoch_acc = running_corrects / (iternum * BATCH_SIZE)
+                # print("Dividing by", iternum * BATCH_SIZE)
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 phase, epoch_loss, epoch_acc))
 
             # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
+            if phase == PHASE_VAL and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = model.state_dict()
                 torch.save(best_model_wts,
