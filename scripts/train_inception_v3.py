@@ -16,14 +16,14 @@ import config
 import loading
 from label_to_cat import LABEL_TO_CAT
 
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 EPOCHS = 3
-ITERS_PER_EPOCH = 1000
+ITERS_PER_EPOCH = 10000
 
 
 def train():
     all_imgs_ids = loading.load_all_train_imgs_ids()
-    ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=0.0001,
+    ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=0.001,
                                             random_state=0)
     train_dataset = loading.CdiscountDataset(ids_train,
                                              'train',
@@ -88,7 +88,7 @@ def train_model(model, dataloaders, dataset_sizes,
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
-        print('-' * 10)
+        print('-' * 20)
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -105,7 +105,7 @@ def train_model(model, dataloaders, dataset_sizes,
             if phase == 'train':
                 iternum = 0
             total_iters = ITERS_PER_EPOCH if phase == 'train' else \
-                np.ceil(dataset_sizes[phase] / float(BATCH_SIZE))
+                int(np.ceil(dataset_sizes[phase] / float(BATCH_SIZE)))
 
             for data in tqdm(dataloaders[phase], total=total_iters):
                 # get the inputs
@@ -140,8 +140,8 @@ def train_model(model, dataloaders, dataset_sizes,
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects / dataset_sizes[phase]
             else:
-                epoch_loss = running_loss / iternum
-                epoch_acc = running_corrects / iternum
+                epoch_loss = running_loss / (iternum * BATCH_SIZE)
+                epoch_acc = running_corrects / (iternum * BATCH_SIZE)
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 phase, epoch_loss, epoch_acc))
