@@ -74,7 +74,7 @@ def train():
         PHASE_VAL: len(valid_dataset)
     }
 
-    model = models.inception_v3(pretrained=True)
+    model = models.inception_v3(pretrained=True, num_classes=config.CAT_COUNT)
     model.aux_logits = False
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
