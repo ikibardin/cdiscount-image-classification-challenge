@@ -24,13 +24,17 @@ VALID_SIZE = 0.002
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
+BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
+INITIAL_LR = 0.0001
+
 
 def train():
     all_imgs_ids = loading.load_all_train_imgs_ids()
     ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=VALID_SIZE,
                                             random_state=0)
-    print("Training on {} samples, validating on {} samples.".format(len(ids_train),
-                                                                     len(ids_valid)))
+    print("Training on {} samples, validating on {} samples.".format(
+        len(ids_train),
+        len(ids_valid)))
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
@@ -77,9 +81,11 @@ def train():
     assert torch.cuda.is_available()
     # model.cuda()
     model = nn.DataParallel(model, device_ids=[0, 1])
+    model.load_state_dict(torch.load(BEST_WEIGHTS))
+    print("Loaded weights from", BEST_WEIGHTS)
     model.cuda()
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     model = train_model(model, dataloaders,
                         dataset_sizes, criterion,
@@ -117,8 +123,6 @@ def train_model(model, dataloaders, dataset_sizes,
 
             for data in tqdm(dataloaders[phase], total=total_iters):
                 # get the inputs
-                if phase == PHASE_TRAIN and iternum == ITERS_PER_EPOCH:
-                    break
                 inputs, labels = data
 
                 # wrap them in Variable
@@ -144,6 +148,8 @@ def train_model(model, dataloaders, dataset_sizes,
                 running_corrects += torch.sum(preds == labels.data)
                 if phase == PHASE_TRAIN:
                     iternum += 1
+                if phase == PHASE_TRAIN and iternum == ITERS_PER_EPOCH:
+                    break
             if phase == PHASE_VAL:
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects / dataset_sizes[phase]
@@ -161,7 +167,7 @@ def train_model(model, dataloaders, dataset_sizes,
                 best_acc = epoch_acc
                 best_model_wts = model.state_dict()
                 torch.save(best_model_wts,
-                           config.INCEPTION_V3_DIR + '{}_epoch.pth'.format(
+                           config.INCEPTION_V3_DIR + '{}_epoch_lower_lr.pth'.format(
                                epoch))
                 print('Best weights updated!')
 
