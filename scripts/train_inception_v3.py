@@ -18,14 +18,14 @@ from label_to_cat import LABEL_TO_CAT
 
 BATCH_SIZE = 80
 EPOCHS = 50
-ITERS_PER_EPOCH = 2000
+ITERS_PER_EPOCH = 1000
 VALID_SIZE = 0.002
 
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
 BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
-INITIAL_LR = 0.0001
+INITIAL_LR = 0.001
 
 
 def train():
@@ -75,7 +75,6 @@ def train():
     }
 
     model = models.inception_v3(pretrained=True)
-    model.aux_logits = False
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
     assert torch.cuda.is_available()
@@ -134,8 +133,11 @@ def train_model(model, dataloaders, dataset_sizes,
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs.float())
-                _, preds = torch.max(outputs.data, 1)
-                loss = criterion(outputs, labels)
+                _, preds = torch.max(outputs[0].data, 1)
+                if isinstance(outputs, tuple):
+                    loss = sum((criterion(o, labels) for o in outputs))
+                else:
+                    loss = criterion(outputs, labels)
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
