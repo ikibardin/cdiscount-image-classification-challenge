@@ -75,7 +75,6 @@ def train():
     }
 
     model = models.inception_v3(pretrained=True, num_classes=config.CAT_COUNT)
-    model.aux_logits = False
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
     assert torch.cuda.is_available()
@@ -134,8 +133,8 @@ def train_model(model, dataloaders, dataset_sizes,
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs.float())
-                _, preds = torch.max(outputs.data, 1)
-                loss = criterion(outputs, labels)
+                _, preds = torch.max(torch.div(torch.sum(outputs[0].data + outputs[1].data), 2), 1)
+                loss = sum((criterion(o, labels) for o in outputs))
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
