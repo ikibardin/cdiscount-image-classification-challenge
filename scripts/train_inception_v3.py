@@ -19,7 +19,7 @@ from mymodels import inception_v3_180
 
 BATCH_SIZE = 80
 EPOCHS = 50
-ITERS_PER_EPOCH = 2000
+ITERS_PER_EPOCH = 10
 VALID_SIZE = 0.002
 
 PHASE_TRAIN = 'train'

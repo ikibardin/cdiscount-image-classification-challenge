@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,23 +9,28 @@ from torchvision import transforms
 import time
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-from torch.optim import lr_scheduler
-
+import cv2
 
 import config
 import loading
 from mymodels import inception_v3_180
 
-BATCH_SIZE = 80
+BATCH_SIZE = 400
 EPOCHS = 50
-ITERS_PER_EPOCH = 10
-VALID_SIZE = 0.006
+ITERS_PER_EPOCH = 1000
+VALID_SIZE = 0.02
 
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
 # BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
 INITIAL_LR = 0.001
+
+
+def random_horizontal_flip(image, u=0.5):
+    if random.random() < u:
+        image = cv2.flip(image, 1)  #np.fliplr(img) ##left-right
+    return image
 
 
 def train():
@@ -39,7 +44,8 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.ToTensor(),
+                                                 [random_horizontal_flip,
+                                                  transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
@@ -87,12 +93,10 @@ def train():
     model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
 
     criterion = nn.CrossEntropyLoss()
-    # optimizer = optim.RMSprop(model.parameters(), lr=INITIAL_LR)
-    optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+    optimizer = optim.RMSprop(model.parameters(), lr=INITIAL_LR)
     model = train_separator(model, dataloaders,
                             dataset_sizes, criterion,
-                            optimizer, EPOCHS, sheduler=exp_lr_scheduler)
+                            optimizer, EPOCHS)
 
 
 def preds_from_outputs(outputs):
@@ -102,20 +106,19 @@ def preds_from_outputs(outputs):
 
 def train_separator(model, dataloaders, dataset_sizes,
                     criterion, optimizer,
-                    num_epochs, sheduler):
+                    num_epochs):
     since = time.time()
 
     best_model_wts = model.state_dict()
     best_acc = 0.0
 
     for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+        print('Epoch {}/{} | lr = {}'.format(epoch, num_epochs - 1, INITIAL_LR))
         print('-' * 20)
 
         # Each epoch has a training and validation phase
         for phase in [PHASE_TRAIN, PHASE_VAL]:
             if phase == PHASE_TRAIN:
-                sheduler.step()
                 model.train(True)  # Set model to training mode
             else:
                 model.train(False)  # Set model to evaluate mode
@@ -126,10 +129,13 @@ def train_separator(model, dataloaders, dataset_sizes,
             # Iterate over data.
             if phase == PHASE_TRAIN:
                 iternum = 0
-            total_iters = ITERS_PER_EPOCH if phase == PHASE_TRAIN else \
-                int(np.ceil(dataset_sizes[phase] / float(BATCH_SIZE)))
+                total_iters = ITERS_PER_EPOCH
+                data_gen = tqdm(dataloaders[phase], total=total_iters)
+            else:
+                data_gen = dataloaders[phase]
 
-            for data in tqdm(dataloaders[phase], total=total_iters):
+
+            for data in data_gen:
                 # get the inputs
                 inputs, labels = data
 
@@ -137,19 +143,16 @@ def train_separator(model, dataloaders, dataset_sizes,
                 assert torch.cuda.is_available()
                 inputs = Variable(inputs.cuda())
                 labels = Variable(labels.cuda())
-                print(labels)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs.float())
-                print(outputs)
-                loss = criterion(outputs.data, labels)
+                loss = criterion(outputs, labels)
                 preds = preds_from_outputs(outputs)
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
-                print(loss)
                 if phase == PHASE_TRAIN:
                     loss.backward()
                     optimizer.step()
