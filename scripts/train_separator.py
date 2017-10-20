@@ -17,7 +17,7 @@ from mymodels import inception_v3_180
 BATCH_SIZE = 80
 EPOCHS = 50
 ITERS_PER_EPOCH = 4000
-VALID_SIZE = 0.002
+VALID_SIZE = 0.006
 
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
@@ -28,6 +28,7 @@ INITIAL_LR = 0.001
 
 def train():
     imgs_ids = loading.load_separator_imgs_ids()
+    print('Some ids:\n', imgs_ids[:10])
     ids_train, ids_valid = train_test_split(imgs_ids, test_size=VALID_SIZE,
                                             random_state=1)
     print("Training on {} samples, validating on {} samples.".format(

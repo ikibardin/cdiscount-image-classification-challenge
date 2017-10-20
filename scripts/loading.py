@@ -4,6 +4,7 @@ import pandas as pd
 import cv2
 from pymongo import MongoClient
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 import config
 from label_to_cat import LABEL_TO_CAT
@@ -30,10 +31,8 @@ def load_all_train_imgs_ids():
 
 
 def load_separator_imgs_ids():
-    df = pd.read_csv(config.SEPARATOR_IMG_IDS_PATH)
-    res = list()
-    for index, row in df.iterrows():
-        res.append((row['_id'], row['img']))
+    with open(config.SEPARATOR_IMG_IDS_PATH_PICKLE, 'rb') as f:
+        res = pickle.load(f)
     return res
 
 

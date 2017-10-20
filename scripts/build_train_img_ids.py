@@ -1,3 +1,4 @@
+import pandas as pd
 import pickle
 from pymongo import MongoClient
 from tqdm import tqdm
@@ -26,5 +27,16 @@ def build_ids(mode, with_cat_id=False):
     print('Done.')
 
 
+def build_separator_ids():
+    print('Building separator images ids.')
+    df = pd.read_csv(config.SEPARATOR_IMG_IDS_PATH_CSV)
+    res = list()
+    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+        res.append((row['_id'], row['img']))
+    with open(config.SEPARATOR_IMG_IDS_PATH_PICKLE, 'wb') as f:
+        pickle.dump(res, f)
+
+
 if __name__ == '__main__':
-    build_ids('train', with_cat_id=True)
+    build_separator_ids()
+    # build_ids('train', with_cat_id=True)
