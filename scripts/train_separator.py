@@ -3,35 +3,33 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
 from torch.autograd import Variable
 import numpy as np
-import torchvision
-from torchvision import datasets, models, transforms
+from torchvision import transforms
 import time
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 import config
 import loading
-from label_to_cat import LABEL_TO_CAT
+from mymodels import inception_v3_180
 
 BATCH_SIZE = 80
 EPOCHS = 50
-ITERS_PER_EPOCH = 2000
+ITERS_PER_EPOCH = 4000
 VALID_SIZE = 0.002
 
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
-BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
-INITIAL_LR = 0.0001
+# BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
+INITIAL_LR = 0.001
 
 
 def train():
-    all_imgs_ids = loading.load_all_train_imgs_ids()
-    ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=VALID_SIZE,
-                                            random_state=0)
+    imgs_ids = loading.load_separator_imgs_ids()
+    ids_train, ids_valid = train_test_split(imgs_ids, test_size=VALID_SIZE,
+                                            random_state=1)
     print("Training on {} samples, validating on {} samples.".format(
         len(ids_train),
         len(ids_valid)))
@@ -43,7 +41,9 @@ def train():
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
-                                                  ]))
+                                                  ]),
+                                             big_cats=True
+                                             )
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -58,7 +58,9 @@ def train():
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
-                                                  ]))
+                                                  ]),
+                                             big_cats=True
+                                             )
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=BATCH_SIZE,
@@ -74,36 +76,30 @@ def train():
         PHASE_VAL: len(valid_dataset)
     }
 
-    model = models.inception_v3(pretrained=True, num_classes=config.CAT_COUNT)
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
+    model = inception_v3_180.inception_v3(pretrained=True,
+                                          num_classes=config.BIG_CAT_COUNT,
+                                          input_shape=(3, config.ORIG_HEIGHT,
+                                                       config.ORIG_WIDTH))
+    # num_ftrs = model.fc.in_features
+    # model.fc = nn.Linear(num_ftrs, len(config.BIG_CAT_COUNT))
     assert torch.cuda.is_available()
-    # model.cuda()
-    model = nn.DataParallel(model, device_ids=[0, 1])
-    model.load_state_dict(torch.load(BEST_WEIGHTS))
-    print("Loaded weights from", BEST_WEIGHTS)
-    model.cuda()
+    model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
+
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-    model = train_model(model, dataloaders,
-                        dataset_sizes, criterion,
-                        optimizer, exp_lr_scheduler, EPOCHS)
+    optimizer = optim.RMSprop(model.parameters(), lr=INITIAL_LR)
+    model = train_separator(model, dataloaders,
+                            dataset_sizes, criterion,
+                            optimizer, EPOCHS)
 
 
 def preds_from_outputs(outputs):
-    """
-    This function is also used in the predict script.
-    """
-    _, preds = torch.max(
-        torch.div(torch.sum(outputs[0].data + outputs[1].data), 2), 1
-    )
+    _, preds = torch.max(outputs.data, 1)
     return preds
 
 
-def train_model(model, dataloaders, dataset_sizes,
-                criterion, optimizer, scheduler,
-                num_epochs):
+def train_separator(model, dataloaders, dataset_sizes,
+                    criterion, optimizer,
+                    num_epochs):
     since = time.time()
 
     best_model_wts = model.state_dict()
@@ -116,7 +112,6 @@ def train_model(model, dataloaders, dataset_sizes,
         # Each epoch has a training and validation phase
         for phase in [PHASE_TRAIN, PHASE_VAL]:
             if phase == PHASE_TRAIN:
-                scheduler.step()
                 model.train(True)  # Set model to training mode
             else:
                 model.train(False)  # Set model to evaluate mode
@@ -143,8 +138,8 @@ def train_model(model, dataloaders, dataset_sizes,
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs.float())
+                loss = criterion(outputs.data, labels)
                 preds = preds_from_outputs(outputs)
-                loss = sum((criterion(o, labels) for o in outputs))
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
@@ -159,6 +154,7 @@ def train_model(model, dataloaders, dataset_sizes,
                     iternum += 1
                 if phase == PHASE_TRAIN and iternum == ITERS_PER_EPOCH:
                     break
+
             if phase == PHASE_VAL:
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects / dataset_sizes[phase]
