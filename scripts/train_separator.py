@@ -9,6 +9,8 @@ from torchvision import transforms
 import time
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+from torch.optim import lr_scheduler
+
 
 import config
 import loading
@@ -85,10 +87,12 @@ def train():
     model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.RMSprop(model.parameters(), lr=INITIAL_LR)
+    # optimizer = optim.RMSprop(model.parameters(), lr=INITIAL_LR)
+    optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     model = train_separator(model, dataloaders,
                             dataset_sizes, criterion,
-                            optimizer, EPOCHS)
+                            optimizer, EPOCHS, sheduler=exp_lr_scheduler)
 
 
 def preds_from_outputs(outputs):
@@ -98,7 +102,7 @@ def preds_from_outputs(outputs):
 
 def train_separator(model, dataloaders, dataset_sizes,
                     criterion, optimizer,
-                    num_epochs):
+                    num_epochs, sheduler):
     since = time.time()
 
     best_model_wts = model.state_dict()
@@ -111,6 +115,7 @@ def train_separator(model, dataloaders, dataset_sizes,
         # Each epoch has a training and validation phase
         for phase in [PHASE_TRAIN, PHASE_VAL]:
             if phase == PHASE_TRAIN:
+                sheduler.step()
                 model.train(True)  # Set model to training mode
             else:
                 model.train(False)  # Set model to evaluate mode
