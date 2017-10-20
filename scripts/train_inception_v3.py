@@ -15,6 +15,7 @@ from tqdm import tqdm
 import config
 import loading
 from label_to_cat import LABEL_TO_CAT
+from mymodels import inception_v3_180
 
 BATCH_SIZE = 80
 EPOCHS = 50
@@ -24,12 +25,12 @@ VALID_SIZE = 0.002
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
-BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
+# BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
 INITIAL_LR = 0.0001
 
 
 def train():
-    all_imgs_ids = loading.load_all_train_imgs_ids()
+    all_imgs_ids = loading.load_separator_imgs_ids()
     ids_train, ids_valid = train_test_split(all_imgs_ids, test_size=VALID_SIZE,
                                             random_state=0)
     print("Training on {} samples, validating on {} samples.".format(
@@ -38,12 +39,12 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [loading.resize,
-                                                  transforms.ToTensor(),
+                                                 [transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
-                                                  ]))
+                                                  ]),
+                                             big_cats=True)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -53,12 +54,12 @@ def train():
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [loading.resize,
-                                                  transforms.ToTensor(),
+                                                 [transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
-                                                  ]))
+                                                  ]),
+                                             big_cats=True)
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=BATCH_SIZE,
@@ -74,14 +75,12 @@ def train():
         PHASE_VAL: len(valid_dataset)
     }
 
-    model = models.inception_v3(pretrained=True, num_classes=config.CAT_COUNT)
+    model = inception_v3_180.inception_v3(pretrained=True, num_classes=config.CAT_COUNT, input_shape=(3, 180, 180))
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
     assert torch.cuda.is_available()
     # model.cuda()
     model = nn.DataParallel(model, device_ids=[0, 1])
-    model.load_state_dict(torch.load(BEST_WEIGHTS))
-    print("Loaded weights from", BEST_WEIGHTS)
     model.cuda()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
@@ -92,11 +91,8 @@ def train():
 
 
 def preds_from_outputs(outputs):
-    """
-    This function is also used in the predict script.
-    """
     _, preds = torch.max(
-        torch.div(torch.sum(outputs[0].data + outputs[1].data), 2), 1
+        outputs.data, 1
     )
     return preds
 
@@ -144,7 +140,7 @@ def train_model(model, dataloaders, dataset_sizes,
                 # forward
                 outputs = model(inputs.float())
                 preds = preds_from_outputs(outputs)
-                loss = sum((criterion(o, labels) for o in outputs))
+                loss = criterion(outputs, labels)
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase

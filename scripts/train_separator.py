@@ -16,7 +16,7 @@ from mymodels import inception_v3_180
 
 BATCH_SIZE = 80
 EPOCHS = 50
-ITERS_PER_EPOCH = 4000
+ITERS_PER_EPOCH = 10
 VALID_SIZE = 0.006
 
 PHASE_TRAIN = 'train'
@@ -37,8 +37,7 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [loading.resize,
-                                                  transforms.ToTensor(),
+                                                 [transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
@@ -54,8 +53,7 @@ def train():
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [loading.resize,
-                                                  transforms.ToTensor(),
+                                                 [transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
@@ -134,16 +132,19 @@ def train_separator(model, dataloaders, dataset_sizes,
                 assert torch.cuda.is_available()
                 inputs = Variable(inputs.cuda())
                 labels = Variable(labels.cuda())
+                print(labels)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs.float())
+                print(outputs)
                 loss = criterion(outputs.data, labels)
                 preds = preds_from_outputs(outputs)
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
+                print(loss)
                 if phase == PHASE_TRAIN:
                     loss.backward()
                     optimizer.step()
@@ -173,7 +174,7 @@ def train_separator(model, dataloaders, dataset_sizes,
                 best_acc = epoch_acc
                 best_model_wts = model.state_dict()
                 torch.save(best_model_wts,
-                           config.INCEPTION_V3_DIR + '{}_epoch_lower_lr.pth'.format(
+                           config.SEPARATOR_DIR + '{}_epoch.pth'.format(
                                epoch))
                 print('Best weights updated!')
 

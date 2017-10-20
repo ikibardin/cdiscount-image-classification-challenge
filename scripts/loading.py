@@ -17,7 +17,7 @@ def resize(img):
 
 
 def load_cat_to_big_label():
-    df = pd.read_csv(config.CAT_TO_BIG_CAT_PATH)
+    df = pd.read_csv(config.CAT_TO_BIG_CAT_PATH, index_col=0)
     res = dict()
     for index, row in df.iterrows():
         res[row['cat_id']] = row['big_cat_id']
@@ -83,7 +83,12 @@ class CdiscountDataset(Dataset):
     def _load_item_train(self, item):
         assert self._mode == 'train'
         product_id, image_number = self._img_ids[item]
+        product_id = int(product_id)
+        image_number = int(image_number)
+        # print('Loading image:', product_id, image_number)
+        # print("%%%%%%%%%%%%%%%% Looking for product_id", product_id, type(product_id))
         product = self._db.find_one({'_id': product_id})
+        # print('%%%%%%%%%%%%%%%% Found', product_id)
         img = _img_from_bytes(product['imgs'][image_number]['picture'])
         if self._transform is not None:
             img = self._transform(img)
