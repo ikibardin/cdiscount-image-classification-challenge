@@ -7,7 +7,7 @@ from torch.optim import lr_scheduler
 from torch.autograd import Variable
 import numpy as np
 import torchvision
-from torchvision import datasets, models, transforms
+from torchvision import datasets, transforms
 import time
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -15,6 +15,7 @@ from tqdm import tqdm
 import config
 import loading
 from label_to_cat import LABEL_TO_CAT
+from mymodels.resnet101 import resnet101
 
 BATCH_SIZE = 256
 EPOCHS = 100
@@ -38,7 +39,7 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.ToPILImage(),	
+                                                 [transforms.ToPILImage(),
                                                   transforms.RandomCrop(160),
                                                   transforms.RandomHorizontalFlip(),
                                                   # transforms.RandomVerticalFlip(),
@@ -82,11 +83,10 @@ def train():
         PHASE_VAL: len(valid_dataset)
     }
 
-    model = models.resnet101(pretrained=True, num_classes=config.CAT_COUNT)
+    model = resnet101(pretrained=True, num_classes=config.CAT_COUNT)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
     assert torch.cuda.is_available()
-    # model.cuda()
     model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
     criterion = nn.CrossEntropyLoss()
     criterion.cuda()
