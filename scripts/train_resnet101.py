@@ -38,9 +38,10 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.RandomCrop(160),
+                                                 [transforms.ToPILImage(),	
+                                                  transforms.RandomCrop(160),
                                                   transforms.RandomHorizontalFlip(),
-                                                  transforms.RandomVerticalFlip(),
+                                                  # transforms.RandomVerticalFlip(),
                                                   transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
@@ -56,9 +57,10 @@ def train():
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.RandomCrop(160),
-                                                  transforms.RandomHorizontalFlip(),
-                                                  transforms.RandomVerticalFlip(),
+                                                 [transforms.ToPILImage(),
+                                                  transforms.RandomCrop(160),
+                                                  # transforms.RandomHorizontalFlip(),
+                                                  # transforms.RandomVerticalFlip(),
                                                   transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
