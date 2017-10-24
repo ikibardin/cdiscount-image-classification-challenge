@@ -38,5 +38,5 @@ def build_separator_ids():
 
 
 if __name__ == '__main__':
-    build_separator_ids()
-    # build_ids('train', with_cat_id=True)
+    # build_separator_ids()
+    build_ids('train', with_cat_id=True)

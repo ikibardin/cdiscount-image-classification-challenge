@@ -50,7 +50,7 @@ def train():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=2
+        num_workers=0
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
@@ -64,7 +64,7 @@ def train():
         valid_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=2
+        num_workers=0
     )
     dataloaders = {
         PHASE_TRAIN: train_loader,

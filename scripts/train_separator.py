@@ -1,4 +1,5 @@
 from __future__ import print_function, division
+import tracemalloc
 import random
 import torch
 import torch.nn as nn
@@ -15,9 +16,9 @@ import config
 import loading
 from mymodels import inception_v3_180
 
-BATCH_SIZE = 400
+BATCH_SIZE = 128
 EPOCHS = 50
-ITERS_PER_EPOCH = 1000
+ITERS_PER_EPOCH = 20000
 VALID_SIZE = 0.02
 
 PHASE_TRAIN = 'train'
@@ -25,6 +26,9 @@ PHASE_VAL = 'val'
 
 # BEST_WEIGHTS = config.INCEPTION_V3_DIR + '18_epoch.pth'
 INITIAL_LR = 0.001
+
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.fastest = False
 
 
 def random_horizontal_flip(image, u=0.5):
@@ -34,6 +38,7 @@ def random_horizontal_flip(image, u=0.5):
 
 
 def train():
+    print('Loading image ids...')
     imgs_ids = loading.load_separator_imgs_ids()
     print('Some ids:\n', imgs_ids[:10])
     ids_train, ids_valid = train_test_split(imgs_ids, test_size=VALID_SIZE,
@@ -41,6 +46,7 @@ def train():
     print("Training on {} samples, validating on {} samples.".format(
         len(ids_train),
         len(ids_valid)))
+    print('Creating datasets and dataloaders...')
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
@@ -57,7 +63,7 @@ def train():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=2
+        num_workers=0
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
@@ -72,7 +78,7 @@ def train():
         valid_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=2
+        num_workers=0
     )
     dataloaders = {
         PHASE_TRAIN: train_loader,
@@ -82,7 +88,7 @@ def train():
         PHASE_TRAIN: len(train_dataset),
         PHASE_VAL: len(valid_dataset)
     }
-
+    print('Creating model...')
     model = inception_v3_180.inception_v3(pretrained=True,
                                           num_classes=config.BIG_CAT_COUNT,
                                           input_shape=(3, config.ORIG_HEIGHT,
@@ -90,10 +96,13 @@ def train():
     # num_ftrs = model.fc.in_features
     # model.fc = nn.Linear(num_ftrs, len(config.BIG_CAT_COUNT))
     assert torch.cuda.is_available()
-    model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
+    model.cuda()
+    # model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
 
     criterion = nn.CrossEntropyLoss()
+    criterion.cuda()
     optimizer = optim.RMSprop(model.parameters(), lr=INITIAL_LR)
+    print('Model created. Starting training...')
     model = train_separator(model, dataloaders,
                             dataset_sizes, criterion,
                             optimizer, EPOCHS)
@@ -142,14 +151,18 @@ def train_separator(model, dataloaders, dataset_sizes,
                 # wrap them in Variable
                 assert torch.cuda.is_available()
                 inputs = Variable(inputs.cuda())
-                labels = Variable(labels.cuda())
+                labels = Variable(labels.cuda(async=True))
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs.float())
+                # continue
+                loss = None
+
                 loss = criterion(outputs, labels)
                 preds = preds_from_outputs(outputs)
+
                 # print("LOSS ", loss.data)
 
                 # backward + optimize only if in training phase
@@ -200,3 +213,4 @@ def train_separator(model, dataloaders, dataset_sizes,
 
 if __name__ == '__main__':
     train()
+
