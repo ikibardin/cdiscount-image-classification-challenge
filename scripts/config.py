@@ -13,6 +13,7 @@ SEPARATOR_IMG_IDS_PATH_PICKLE = '../input/separator_img_id.pickle'
 CAT_TO_BIG_CAT_PATH = '../input/cat_big_cat.csv'
 
 TEST_SIZE = 1768182
+TRAIN_SIZE = 12371293
 
 CAT_COUNT = 5270
 BIG_CAT_COUNT = 4
