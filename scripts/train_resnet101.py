@@ -17,7 +17,7 @@ import loading
 from label_to_cat import LABEL_TO_CAT
 from mymodels.resnet101 import resnet101
 
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 EPOCHS = 100
 VALID_SIZE = 851293
 
@@ -39,8 +39,8 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.ToPILImage(),
-                                                  transforms.RandomCrop(160),
+                                                 [transforms.ToPILImage(), transforms.Scale(224),
+                                                  # transforms.RandomCrop(160),
                                                   transforms.RandomHorizontalFlip(),
                                                   # transforms.RandomVerticalFlip(),
                                                   transforms.ToTensor(),
@@ -58,8 +58,8 @@ def train():
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.ToPILImage(),
-                                                  transforms.RandomCrop(160),
+                                                 [transforms.ToPILImage(), transforms.Scale(224),
+                                                  # transforms.RandomCrop(160),
                                                   # transforms.RandomHorizontalFlip(),
                                                   # transforms.RandomVerticalFlip(),
                                                   transforms.ToTensor(),
