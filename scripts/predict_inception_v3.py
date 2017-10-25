@@ -1,19 +1,14 @@
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.optim import lr_scheduler
-from torch.autograd import Variable
-import numpy as np
-import torchvision
-from torchvision import models
-import time
-from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 from pymongo import MongoClient
+from torch.autograd import Variable
+from torchvision import models
+from tqdm import tqdm
 
 import config
-from label_to_cat import LABEL_TO_CAT
 import loading
-from train_inception_v3 import preds_from_outputs
+from label_to_cat import LABEL_TO_CAT
 
 BEST_WEIGHTS = ''
 

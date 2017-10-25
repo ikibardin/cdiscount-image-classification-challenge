@@ -181,7 +181,7 @@ def train_model(model, dataloaders, dataset_sizes,
                 phase, epoch_loss, epoch_acc)
             )
             torch.save(model.state_dict(),
-                       config.RESNET101 + '{}_epoch_{}.pth'.format(
+                       config.RESNET101_DIR + '{}_epoch_{}.pth'.format(
                            epoch, phase))
             # deep copy the model
             if phase == PHASE_VAL and epoch_acc > best_acc:

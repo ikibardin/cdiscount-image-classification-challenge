@@ -1,10 +1,12 @@
+import os
+import io
 import pickle
+from PIL import Image
 import numpy as np
 import pandas as pd
 import cv2
 from pymongo import MongoClient
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 import config
 from label_to_cat import LABEL_TO_CAT
@@ -98,4 +100,40 @@ class CdiscountDataset(Dataset):
         assert self._mode == 'test'
         raise RuntimeError('Not implemented')
 
-# class CdiscountBigCategoriesDataset(Dataset):
+
+def pil_loader(f):
+    with Image.open(io.BytesIO(f)) as img:
+        return img.convert('RGB')
+
+
+class NotMyDatasetDB(Dataset):
+    def __init__(self, col_name='train', transform=None):
+        assert col_name in ('train', 'test')
+        self._label_dtype = np.int32
+        self.transform = transform
+
+        client = MongoClient('localhost', 27017)
+        self.col = client.cdiscount[col_name]
+        self.examples = list(self.col.find({}, {'imgs': 0}))
+        self.labels = self.get_labels()
+        # print(self.labels)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def get_labels(self):
+        return {v: k for k, v in LABEL_TO_CAT.items()}
+
+    def __getitem__(self, i):
+        _id = self.examples[i]['_id']
+        doc = self.col.find_one({'_id': _id})
+
+        img = doc['imgs'][0]['picture']
+        img = pil_loader(img)
+
+        if self.transform:
+            img = self.transform(img)
+
+        label = self.labels[doc['category_id']]
+        assert type(label) == int
+        return img, label, _id
