@@ -11,6 +11,9 @@ from torchvision import datasets, transforms
 import time
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+import gc
+import random
+from PIL import Image
 
 import config
 import loading
@@ -18,13 +21,29 @@ from label_to_cat import LABEL_TO_CAT
 from mymodels.resnet101 import resnet101
 
 BATCH_SIZE = 128
-EPOCHS = 100
+EPOCHS = 50
 VALID_SIZE = 851293
 
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
 INITIAL_LR = 0.001
+
+
+class MyRandomVerticalFlip(object):
+    """Vertically flip the given PIL Image randomly with a
+    probability of 0.5."""
+
+    def __call__(self, img):
+        """
+        Args:
+            img (PIL Image): Image to be flipped.
+        Returns:
+            PIL Image: Randomly flipped image.
+        """
+        if random.random() < 0.5:
+            return img.transpose(Image.FLIP_TOP_BOTTOM)
+        return img
 
 
 def train():
@@ -39,10 +58,10 @@ def train():
     train_dataset = loading.CdiscountDataset(ids_train,
                                              PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.ToPILImage(), transforms.Scale(224),
-                                                  # transforms.RandomCrop(160),
+                                                 [transforms.ToPILImage(),
+                                                  transforms.RandomCrop(160),
                                                   transforms.RandomHorizontalFlip(),
-                                                  # transforms.RandomVerticalFlip(),
+                                                  MyRandomVerticalFlip(),
                                                   transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
@@ -58,8 +77,8 @@ def train():
     )
     valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
                                              transform=transforms.Compose(
-                                                 [transforms.ToPILImage(), transforms.Scale(224),
-                                                  # transforms.RandomCrop(160),
+                                                 [transforms.ToPILImage(),
+                                                  transforms.RandomCrop(160),
                                                   # transforms.RandomHorizontalFlip(),
                                                   # transforms.RandomVerticalFlip(),
                                                   transforms.ToTensor(),
@@ -128,10 +147,10 @@ def train_model(model, dataloaders, dataset_sizes,
             running_corrects = 0
 
             # Iterate over data.
-            for data in tqdm(dataloaders[phase], total=dataset_sizes[phase]):
+            for data in tqdm(dataloaders[phase],
+                             total=np.ceil(dataset_sizes[phase] / BATCH_SIZE)):
                 # get the inputs
                 inputs, labels = data
-
                 # wrap them in Variable
                 assert torch.cuda.is_available()
                 inputs = Variable(inputs.cuda())
@@ -140,19 +159,20 @@ def train_model(model, dataloaders, dataset_sizes,
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
-                outputs = model(inputs.float())
+                outputs = model(inputs)
                 preds = preds_from_outputs(outputs)
                 loss = criterion(outputs, labels)
-                # print("LOSS ", loss.data)
-
                 # backward + optimize only if in training phase
                 if phase == PHASE_TRAIN:
                     loss.backward()
                     optimizer.step()
-
                 # statistics
                 running_loss += loss.data[0]
                 running_corrects += torch.sum(preds == labels.data)
+
+                del inputs
+                del labels
+                gc.collect()
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects / dataset_sizes[phase]
@@ -161,8 +181,8 @@ def train_model(model, dataloaders, dataset_sizes,
                 phase, epoch_loss, epoch_acc)
             )
             torch.save(model.state_dict(),
-                       config.RESNET101 + '{}_epoch.pth'.format(
-                           epoch))
+                       config.RESNET101 + '{}_epoch_{}.pth'.format(
+                           epoch, phase))
             # deep copy the model
             if phase == PHASE_VAL and epoch_acc > best_acc:
                 best_acc = epoch_acc
