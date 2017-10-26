@@ -68,7 +68,6 @@ class Bottleneck(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-
     def forward(self, x):
         residual = x
 
@@ -106,7 +105,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         # self.avgpool = nn.AvgPool2d(7, stride=1) fixed input size (224, 224)
-        self.avgpool = nn.AdaptiveAvgPool2d(1) #adaptive input size
+        self.avgpool = nn.AdaptiveAvgPool2d(1)  # adaptive input size
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():

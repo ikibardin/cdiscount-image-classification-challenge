@@ -119,7 +119,10 @@ def train():
     criterion.cuda()
 
     optimizer = optim.SGD([
-        {'params': model.layer0.parameters(), 'lr': 0.001},
+        {'params': model.conv1.parameters(), 'lr': 0.001},
+        {'params': model.bn1.parameters(), 'lr': 0.001},
+        {'params': model.relu.parameters(), 'lr': 0.001},
+        {'params': model.maxpool.parameters(), 'lr': 0.001},
         {'params': model.layer1.parameters(), 'lr': 0.001},
         {'params': model.layer2.parameters(), 'lr': 0.001},
         {'params': model.layer3.parameters(), 'lr': 0.001},
