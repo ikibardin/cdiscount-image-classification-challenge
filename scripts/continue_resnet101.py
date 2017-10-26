@@ -20,8 +20,8 @@ import loading
 from label_to_cat import LABEL_TO_CAT
 from mymodels.resnet101 import resnet101
 
-LOAD_WEIGHTS_FROM = config.RESNET101_DIR + '0_epoch_train.pth'
-INITIAL_EPOCH = 1
+LOAD_WEIGHTS_FROM = config.RESNET101_DIR + '2_epoch_val.pth'
+INITIAL_EPOCH = 2
 
 BATCH_SIZE = 256
 VAL_BATCH_SIZE = 128
@@ -32,7 +32,8 @@ VALID_SIZE = 851293
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
 
-INITIAL_LR = 0.001
+
+# INITIAL_LR = 0.001
 
 
 class MyRandomVerticalFlip(object):
@@ -116,7 +117,16 @@ def train():
     model.cuda()
     criterion = nn.CrossEntropyLoss()
     criterion.cuda()
-    optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
+
+    optimizer = optim.SGD([
+        {'params': model.layer0.parameters(), 'lr': 0.001},
+        {'params': model.layer1.parameters(), 'lr': 0.001},
+        {'params': model.layer2.parameters(), 'lr': 0.001},
+        {'params': model.layer3.parameters(), 'lr': 0.001},
+        {'params': model.layer4.parameters(), 'lr': 0.01},
+        {'params': model.fc.parameters(), 'lr': 0.01}
+    ], lr=0.001, momentum=0.9, nesterov=True)
+
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     model = train_model(model, dataloaders,
                         dataset_sizes, criterion,
@@ -159,7 +169,8 @@ def train_model(model, dataloaders, dataset_sizes,
             else:
                 phase_batch_size = VAL_BATCH_SIZE
             for data in tqdm(dataloaders[phase],
-                             total=np.ceil(dataset_sizes[phase] / phase_batch_size)):
+                             total=np.ceil(dataset_sizes[
+                                               phase] / phase_batch_size)):
                 # get the inputs
                 inputs, labels = data
                 # wrap them in Variable
