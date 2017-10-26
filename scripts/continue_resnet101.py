@@ -20,10 +20,12 @@ import loading
 from label_to_cat import LABEL_TO_CAT
 from mymodels.resnet101 import resnet101
 
-LOAD_WEIGHTS_FROM = config.RESNET101_DIR + '{}_epoch_{}.pth'
+LOAD_WEIGHTS_FROM = config.RESNET101_DIR + '0_epoch_train.pth'
 INITIAL_EPOCH = 1
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
+VAL_BATCH_SIZE = 128
+
 EPOCHS = 50
 VALID_SIZE = 851293
 
@@ -92,7 +94,7 @@ def train():
                                              big_cats=False)
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
-        batch_size=BATCH_SIZE,
+        batch_size=VAL_BATCH_SIZE,
         shuffle=True,
         num_workers=0
     )
@@ -108,9 +110,10 @@ def train():
     model = resnet101(pretrained=True, num_classes=config.CAT_COUNT)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(LABEL_TO_CAT))
-    model.load_state_dict(torch.load(LOAD_WEIGHTS_FROM))
     assert torch.cuda.is_available()
     model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
+    model.load_state_dict(torch.load(LOAD_WEIGHTS_FROM))
+    model.cuda()
     criterion = nn.CrossEntropyLoss()
     criterion.cuda()
     optimizer = optim.SGD(model.parameters(), lr=INITIAL_LR, momentum=0.9)
@@ -151,15 +154,22 @@ def train_model(model, dataloaders, dataset_sizes,
             running_corrects = 0
 
             # Iterate over data.
+            if phase == PHASE_TRAIN:
+                phase_batch_size = BATCH_SIZE
+            else:
+                phase_batch_size = VAL_BATCH_SIZE
             for data in tqdm(dataloaders[phase],
-                             total=np.ceil(dataset_sizes[phase] / BATCH_SIZE)):
+                             total=np.ceil(dataset_sizes[phase] / phase_batch_size)):
                 # get the inputs
                 inputs, labels = data
                 # wrap them in Variable
                 assert torch.cuda.is_available()
-                inputs = Variable(inputs.cuda())
-                labels = Variable(labels.cuda(async=True))
-
+                if phase == PHASE_TRAIN:
+                    inputs = Variable(inputs.cuda())
+                    labels = Variable(labels.cuda(async=True))
+                else:
+                    inputs = Variable(inputs.cuda(), volatile=True)
+                    labels = Variable(labels.cuda(async=True), volatile=True)
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward

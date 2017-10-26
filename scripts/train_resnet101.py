@@ -153,9 +153,12 @@ def train_model(model, dataloaders, dataset_sizes,
                 inputs, labels = data
                 # wrap them in Variable
                 assert torch.cuda.is_available()
-                inputs = Variable(inputs.cuda())
-                labels = Variable(labels.cuda(async=True))
-
+                if phase == PHASE_TRAIN:
+                    inputs = Variable(inputs.cuda())
+                    labels = Variable(labels.cuda(async=True))
+                else:
+                    inputs = Variable(inputs.cuda(), volatile=True)
+                    labels = Variable(inputs.cuda(async=True, volatile=True)
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
