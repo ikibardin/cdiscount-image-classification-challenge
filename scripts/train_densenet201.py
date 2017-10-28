@@ -19,8 +19,8 @@ LOAD_OPTIM_FROM = None
 
 INITIAL_EPOCH = 0
 
-BATCH_SIZE = 256
-VAL_BATCH_SIZE = 128
+BATCH_SIZE = 128
+VAL_BATCH_SIZE = 2048
 
 EPOCHS = 100
 
@@ -83,7 +83,7 @@ def train():
     if LOAD_WEIGHTS_FROM is not None:
         model.load_state_dict(torch.load(LOAD_WEIGHTS_FROM))
     model.cuda()
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(size_average=False)
     criterion.cuda()
 
     # Freeze layers
@@ -113,7 +113,7 @@ def train_model(model, dataloaders, dataset_sizes,
         print('-' * 20)
 
         # Each epoch has a training and validation phase
-        for phase in [PHASE_VAL, PHASE_TRAIN]:
+        for phase in [PHASE_TRAIN, PHASE_VAL]:
             if phase == PHASE_TRAIN:
                 model.train(True)  # Set model to training mode
             else:
@@ -144,7 +144,7 @@ def train_model(model, dataloaders, dataset_sizes,
                 optimizer.zero_grad()
                 # forward
                 outputs = model(inputs)
-                proba = nn.functional.softmax(outputs.data)
+                proba = nn.functional.softmax(outputs.data).data
                 _, preds = torch.max(proba, 1)
                 loss = criterion(outputs, labels)
                 # backward + optimize only if in training phase

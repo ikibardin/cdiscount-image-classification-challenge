@@ -16,7 +16,7 @@ model_urls = {
 
 
 def _load_pretrained_weights(model, model_name):
-    skip = ['fc.weight', 'fc.bias']
+    skip = ['classifier.weight', 'classifier.bias']
     pretrained_weights = model_zoo.load_url(model_urls[model_name])
     state_dict = model.state_dict()
     for key in state_dict.keys():
