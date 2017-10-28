@@ -47,17 +47,17 @@ def train():
         len(ids_train),
         len(ids_valid)))
     print('Creating datasets and dataloaders...')
-    train_dataset = loading.CdiscountDataset(ids_train,
-                                             PHASE_TRAIN,
-                                             transform=transforms.Compose(
+    train_dataset = loading.CdiscountDatasetFromPickledList(ids_train,
+                                                            PHASE_TRAIN,
+                                                            transform=transforms.Compose(
                                                  [random_horizontal_flip,
                                                   transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
                                                   ]),
-                                             big_cats=True
-                                             )
+                                                            big_cats=True
+                                                            )
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -65,15 +65,15 @@ def train():
         shuffle=True,
         num_workers=0
     )
-    valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
-                                             transform=transforms.Compose(
+    valid_dataset = loading.CdiscountDatasetFromPickledList(ids_valid, PHASE_TRAIN,
+                                                            transform=transforms.Compose(
                                                  [transforms.ToTensor(),
                                                   transforms.Normalize(
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
                                                   ]),
-                                             big_cats=True
-                                             )
+                                                            big_cats=True
+                                                            )
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=BATCH_SIZE,

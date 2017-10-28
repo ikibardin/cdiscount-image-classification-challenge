@@ -12,12 +12,6 @@ import config
 from label_to_cat import LABEL_TO_CAT
 
 
-def resize(img):
-    res = cv2.resize(img, (299, 299))
-    assert res is not None
-    return res
-
-
 def load_cat_to_big_label():
     df = pd.read_csv(config.CAT_TO_BIG_CAT_PATH, index_col=0)
     res = dict()
@@ -45,7 +39,7 @@ def _img_from_bytes(img_bytes):
     return img
 
 
-class CdiscountDataset(Dataset):
+class CdiscountDatasetFromPickledList(Dataset):
     def __init__(self, img_ids, mode, transform=None, big_cats=False):
         """
         :param img_ids: TRAIN: list of tuples (product_id, img_number),
@@ -86,8 +80,61 @@ class CdiscountDataset(Dataset):
         product_id, image_number = self._img_ids[item]
         product_id = int(product_id)
         image_number = int(image_number)
-        # print('Loading image:', product_id, image_number)
-        # print("%%%%%%%%%%%%%%%% Looking for product_id", product_id, type(product_id))
+        product = self._db.find_one({'_id': product_id})
+        # print('%%%%%%%%%%%%%%%% Found', product_id)
+        img = _img_from_bytes(product['imgs'][image_number]['picture'])
+        if self._transform is not None:
+            img = self._transform(img)
+        label = self._cat_to_label[product['category_id']]
+        return img, label
+
+    def _load_item_test(self, item):
+        assert self._mode == 'test'
+        raise RuntimeError('Not implemented')
+
+
+class CdiscountDatasetPandas(Dataset):
+    def __init__(self, img_ids_df, mode, transform=None, big_cats=False):
+        """
+        :param img_ids: TRAIN: list of tuples (product_id, img_number),
+        img_number between 0 and 3
+        TEST: list of product_ids
+        """
+        assert mode in ('train', 'test')
+        # assert isinstance(img_ids, np.array)
+        self._img_ids = img_ids_df
+        self._transform = transform
+        self._client = MongoClient(connect=False)
+        self._mode = mode
+        self._db = self._client.cdiscount[mode]
+        self._big_cats = big_cats
+        if not self._big_cats:
+            self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
+        else:
+            self._cat_to_label = load_cat_to_big_label()
+
+    def __len__(self):
+        return self._img_ids.shape[0]
+
+    def __getitem__(self, item):
+        """
+        :param item:
+        :return: In train mode -- tuple (img, label)
+                 In test mode -- dict with '_id' and 'imgs' list
+        """
+        if self._mode == 'train':
+            return self._load_item_train(item)
+        elif self._mode == 'test':
+            return self._load_item_test(item)
+        else:
+            raise ValueError('Unexpected mode.')
+
+    def _load_item_train(self, item):
+        assert self._mode == 'train'
+        product_id = self._img_ids.id.iloc[item]
+        image_number = self._img_ids.image_numb[item]
+        product_id = int(product_id)
+        image_number = int(image_number)
         product = self._db.find_one({'_id': product_id})
         # print('%%%%%%%%%%%%%%%% Found', product_id)
         img = _img_from_bytes(product['imgs'][image_number]['picture'])

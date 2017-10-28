@@ -61,9 +61,9 @@ def train():
     print("Training on {} samples, validating on {} samples.".format(
         len(ids_train),
         len(ids_valid)))
-    train_dataset = loading.CdiscountDataset(ids_train,
-                                             PHASE_TRAIN,
-                                             transform=transforms.Compose(
+    train_dataset = loading.CdiscountDatasetFromPickledList(ids_train,
+                                                            PHASE_TRAIN,
+                                                            transform=transforms.Compose(
                                                  [transforms.ToPILImage(),
                                                   transforms.RandomCrop(160),
                                                   transforms.RandomHorizontalFlip(),
@@ -73,7 +73,7 @@ def train():
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
                                                   ]),
-                                             big_cats=False)
+                                                            big_cats=False)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -81,8 +81,8 @@ def train():
         shuffle=True,
         num_workers=1
     )
-    valid_dataset = loading.CdiscountDataset(ids_valid, PHASE_TRAIN,
-                                             transform=transforms.Compose(
+    valid_dataset = loading.CdiscountDatasetFromPickledList(ids_valid, PHASE_TRAIN,
+                                                            transform=transforms.Compose(
                                                  [transforms.ToPILImage(),
                                                   transforms.RandomCrop(160),
                                                   # transforms.RandomHorizontalFlip(),
@@ -92,7 +92,7 @@ def train():
                                                       [0.485, 0.456, 0.406],
                                                       [0.229, 0.224, 0.225])
                                                   ]),
-                                             big_cats=False)
+                                                            big_cats=False)
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=VAL_BATCH_SIZE,
