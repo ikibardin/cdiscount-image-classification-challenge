@@ -14,10 +14,10 @@ import config
 import loading
 from mymodels.densenet import densenet201
 
-LOAD_WEIGHTS_FROM = None
+LOAD_WEIGHTS_FROM = config.DENSENET_DIR + '0_epoch_val.pth'
 LOAD_OPTIM_FROM = None
 
-INITIAL_EPOCH = 0
+INITIAL_EPOCH = 1
 
 BATCH_SIZE = 128
 VAL_BATCH_SIZE = 2048
@@ -87,12 +87,16 @@ def train():
     criterion.cuda()
 
     # Freeze layers
+    # for param in model.parameters():
+    #     param.requires_grad = False
+    # for param in model.module.classifier.parameters():
+    #     param.requires_grad = True
     for param in model.parameters():
-        param.requires_grad = False
-    for param in model.module.classifier.parameters():
         param.requires_grad = True
-
-    optimizer = optim.Adam(model.module.classifier.parameters(), lr=0.0001)
+    optimizer = optim.Adam([
+        {'params': model.module.features.parameters(), 'lr': 0.00001},
+        {'params': model.module.classifier.parameters(), 'lr': 0.0001}
+    ], lr=0.0001)
     if LOAD_OPTIM_FROM is not None:
         optimizer.load_state_dict(torch.load(LOAD_OPTIM_FROM))
 
@@ -113,7 +117,7 @@ def train_model(model, dataloaders, dataset_sizes,
         print('-' * 20)
 
         # Each epoch has a training and validation phase
-        for phase in [PHASE_TRAIN, PHASE_VAL]:
+        for phase in [PHASE_VAL, PHASE_TRAIN]:
             if phase == PHASE_TRAIN:
                 model.train(True)  # Set model to training mode
             else:
