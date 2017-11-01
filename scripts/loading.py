@@ -184,3 +184,53 @@ class NotMyDatasetDB(Dataset):
         label = self.labels[doc['category_id']]
         assert type(label) == int
         return img, label, _id
+
+
+class ArturDataset(Dataset):
+    def __init__(self, table, mode, transform=None):
+        """
+        :param img_ids: TRAIN: list of tuples (product_id, img_number),
+        img_number between 0 and 3
+        TEST: list of product_ids
+        """
+        assert mode in ('train', 'test')
+        if mode == 'test':
+            raise RuntimeError('Not implemented')
+        # assert isinstance(img_ids, np.array)
+        self._table = table
+        self._transform = transform
+        self._mode = mode
+        self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
+        self._train_dir = '/media/bcache/generated_datasets/fattahov_cowc1_1/data/train'
+
+    def __len__(self):
+        return self._table.shape[0]
+
+    def __getitem__(self, item):
+        """
+        :param item:
+        :return: In train mode -- tuple (img, label)
+                 In test mode -- dict with '_id' and 'imgs' list
+        """
+        if self._mode == 'train':
+            return self._load_item_train(item)
+        elif self._mode == 'test':
+            return self._load_item_test(item)
+        else:
+            raise ValueError('Unexpected mode.')
+
+    def _load_item_train(self, item):
+        assert self._mode == 'train'
+        image_name = self._table.image_name.iloc[item]
+        cat = self._table.cat.iloc[item]
+        # image_number = self._img_ids.image_numb[item]
+        img = cv2.imread('{}/{}/{}'.format(self._train_dir,
+                                           cat, image_name), cv2.IMREAD_COLOR)
+        if self._transform is not None:
+            img = self._transform(img)
+        label = self._cat_to_label[cat]
+        return img, label
+
+    def _load_item_test(self, item):
+        assert self._mode == 'test'
+        raise RuntimeError('Not implemented')
