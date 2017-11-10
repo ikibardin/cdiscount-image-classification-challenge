@@ -57,7 +57,7 @@ def predict_model(model, use_tta):
     predictions = list()
     for ids_batch, imgs_counts, imgs_batch in tqdm(test_gen,
                                                    total=np.ceil(
-                                                               config.TEST_SIZE / PRODUCTS_IN_BATCH)):
+                                                               config.TEST_PRODUCTS_COUNT / PRODUCTS_IN_BATCH)):
         inputs = Variable(imgs_batch.cuda())
         outputs = model(inputs.float())
         if use_tta:

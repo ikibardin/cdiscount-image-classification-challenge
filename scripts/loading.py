@@ -131,8 +131,18 @@ class CdiscountDatasetPandas(Dataset):
 
     def _load_item_train(self, item):
         assert self._mode == 'train'
-        product_id = self._img_ids.id.iloc[item]
-        image_number = self._img_ids.image_numb[item]
+        _, _, img, product = self._load_all(item)
+        label = self._cat_to_label[product['category_id']]
+        return img, label
+
+    def _load_item_test(self, item):
+        assert self._mode == 'test'
+        product_id, image_number, img, _ = self._load_all(item)
+        return product_id, image_number, img
+
+    def _load_all(self, index):
+        product_id = self._img_ids.id.iloc[index]
+        image_number = self._img_ids.image_numb[index]
         product_id = int(product_id)
         image_number = int(image_number)
         product = self._db.find_one({'_id': product_id})
@@ -140,50 +150,7 @@ class CdiscountDatasetPandas(Dataset):
         img = _img_from_bytes(product['imgs'][image_number]['picture'])
         if self._transform is not None:
             img = self._transform(img)
-        label = self._cat_to_label[product['category_id']]
-        return img, label
-
-    def _load_item_test(self, item):
-        assert self._mode == 'test'
-        raise RuntimeError('Not implemented')
-
-
-def pil_loader(f):
-    with Image.open(io.BytesIO(f)) as img:
-        return img.convert('RGB')
-
-
-class NotMyDatasetDB(Dataset):
-    def __init__(self, col_name='train', transform=None):
-        assert col_name in ('train', 'test')
-        self._label_dtype = np.int32
-        self.transform = transform
-
-        client = MongoClient('localhost', 27017)
-        self.col = client.cdiscount[col_name]
-        self.examples = list(self.col.find({}, {'imgs': 0}))
-        self.labels = self.get_labels()
-        # print(self.labels)
-
-    def __len__(self):
-        return len(self.examples)
-
-    def get_labels(self):
-        return {v: k for k, v in LABEL_TO_CAT.items()}
-
-    def __getitem__(self, i):
-        _id = self.examples[i]['_id']
-        doc = self.col.find_one({'_id': _id})
-
-        img = doc['imgs'][0]['picture']
-        img = pil_loader(img)
-
-        if self.transform:
-            img = self.transform(img)
-
-        label = self.labels[doc['category_id']]
-        assert type(label) == int
-        return img, label, _id
+        return product_id, image_number, img, product
 
 
 class ArturDataset(Dataset):
