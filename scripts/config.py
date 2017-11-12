@@ -5,6 +5,7 @@ INCEPTION_V3_DIR = CHECKPOINTS_DIR + 'inception-v3/'
 SEPARATOR_DIR = CHECKPOINTS_DIR + 'separator/'
 RESNET101_DIR = CHECKPOINTS_DIR + 'resnet101/'
 DENSENET_DIR = CHECKPOINTS_DIR + 'densenet/'
+RESNET50_DIR = CHECKPOINTS_DIR + 'resnet50/'
 
 IMG_IDS_PATH = '../input/img_ids.pickle'
 IMG_IDS_WITH_CAT_PATH = '../input/img_ids_with_cat.pickle'

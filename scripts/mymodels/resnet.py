@@ -20,6 +20,18 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
+def _load_pretrained_weights(model, model_name):
+    skip = ['fc.weight', 'fc.bias']
+    pretrained_weights = model_zoo.load_url(model_urls[model_name])
+    state_dict = model.state_dict()
+    for key in state_dict.keys():
+        if key in skip:
+            continue
+        state_dict[key] = pretrained_weights[key]
+    model.load_state_dict(state_dict)
+    return model
+
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -92,7 +104,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=1000):
+    def __init__(self, block, layers, num_classes):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -159,7 +171,8 @@ def resnet18(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
+        model = _load_pretrained_weights(model, 'resnet18')
+        # model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model
 
 
@@ -171,7 +184,8 @@ def resnet34(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+        model = _load_pretrained_weights(model, 'resnet34')
+        # model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
     return model
 
 
@@ -183,7 +197,8 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+        model = _load_pretrained_weights(model, 'resnet50')
+        # model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
 
 
@@ -195,14 +210,7 @@ def resnet101(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     if pretrained:
-        skip = ['fc.weight', 'fc.bias']
-        pretrained_state_dict = model_zoo.load_url(model_urls['resnet101'])
-        state_dict = model.state_dict()
-        for key in state_dict.keys():
-            if key in skip:
-                continue
-            state_dict[key] = pretrained_state_dict[key]
-        model.load_state_dict(state_dict)
+        model = _load_pretrained_weights(model, 'resnet101')
     return model
 
 
@@ -214,5 +222,6 @@ def resnet152(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
+        model = _load_pretrained_weights(model, 'resnet152')
+        # model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model

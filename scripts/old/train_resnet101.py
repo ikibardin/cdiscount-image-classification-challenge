@@ -18,7 +18,7 @@ from PIL import Image
 import config
 import loading
 from label_to_cat import LABEL_TO_CAT
-from mymodels.resnet101 import resnet101
+from mymodels.resnet import resnet101
 
 BATCH_SIZE = 128
 EPOCHS = 50
