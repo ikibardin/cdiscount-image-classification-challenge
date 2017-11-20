@@ -13,7 +13,7 @@ from mymodels.resnet import resnet50
 import tta_predict
 from probs_saver import ProbStore
 
-LOAD_WEIGHTS_FROM = config.RESNET50_DIR + '?_epoch_val.pth'
+LOAD_WEIGHTS_FROM = config.RESNET50_DIR + '23_epoch_val.pth'
 
 TEST_BATCH_SIZE = 2048
 
@@ -23,13 +23,13 @@ NORM_STD = [0.229, 0.224, 0.225]
 
 def train():
     ids_test = pd.read_csv(config.TEST_IDS_PATH)
-    ids_test = ids_test[:100]
+    ids_test = ids_test[:TEST_BATCH_SIZE * 5]
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
         mode='test',
-        transform=None)
+        transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -53,7 +53,6 @@ def predict(model, dataloader, test_size):
         columns.append(str(i))
     storage = ProbStore(path='../input/predict_probs_resnet50.h5')
     model.train(False)
-    transform = tta_predict.tta_transform(NORM_MEAN, NORM_STD)
     for data in tqdm(dataloader,
                      total=int(np.ceil(test_size / float(TEST_BATCH_SIZE)))):
         # get the inputs
@@ -61,7 +60,7 @@ def predict(model, dataloader, test_size):
         # wrap them in Variable
         assert torch.cuda.is_available()
 
-        inputs = [transform(img) for img in inputs]
+        # inputs = [transform(img) for img in inputs]
         inputs = Variable(inputs.cuda(), volatile=True)
         bs, ncrops, c, h, w = inputs.size()
         assert bs == TEST_BATCH_SIZE and ncrops == 10
