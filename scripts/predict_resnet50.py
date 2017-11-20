@@ -23,7 +23,7 @@ NORM_STD = [0.229, 0.224, 0.225]
 
 def train():
     ids_test = pd.read_csv(config.TEST_IDS_PATH)
-    ids_test = ids_test[:TEST_BATCH_SIZE]
+    # ids_test = ids_test[:TEST_BATCH_SIZE]
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
@@ -35,8 +35,9 @@ def train():
         test_dataset,
         batch_size=TEST_BATCH_SIZE,
         shuffle=True,
-        num_workers=0
+        num_workers=3
     )
+    # print(len(test_loader))
 
     model = resnet50(pretrained=True, num_classes=config.CAT_COUNT)
     assert torch.cuda.is_available()
@@ -53,8 +54,7 @@ def predict(model, dataloader, test_size):
         columns.append(str(i))
     storage = ProbStore(path='../input/predict_probs_resnet50.h5')
     model.train(False)
-    for data in tqdm(dataloader,
-                     total=np.ceil(test_size / float(TEST_BATCH_SIZE))):
+    for data in tqdm(dataloader, total=test_size):
         # get the inputs
         product_ids, image_numbers, inputs = data
         # wrap them in Variable
@@ -81,7 +81,7 @@ def predict(model, dataloader, test_size):
         # print(two_cols.shape, proba.data.numpy().shape)
         df = pd.DataFrame(data=np.hstack(
             [two_cols, proba.data.numpy().astype('float16')]
-        ), columns=columns, index=None)
+        ), columns=columns, index=None, dtype=np.float16)
         storage.saveProbs(df)
 
 

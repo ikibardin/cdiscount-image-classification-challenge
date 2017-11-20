@@ -13,6 +13,7 @@ class ProbStore:
         data -- a DataFrame for one image, index -- index of an image in test
         """
         assert isinstance(data, DataFrame)
+        # self._hdf['d' + str(self._length)] = data
         self._hdf.put('d' + str(self._length), data, table=True)
         self._length += 1
 
