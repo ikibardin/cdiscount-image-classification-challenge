@@ -23,20 +23,6 @@ NORM_MEAN = [0.49139968, 0.48215827, 0.44653124]
 NORM_STD = [0.24703233, 0.24348505, 0.26158768]
 
 
-def tta_transform(crop):
-    return transforms.Compose([
-        transforms.ToPILImage(),
-        crop,
-        transforms.ToTensor(),
-        transforms.Normalize(mean=NORM_MEAN, std=NORM_STD)
-    ])
-
-
-def tta_predict(model, inputs):
-    res = list()
-    transforms.FiveCrop(160) # ЭТОЙ ХУЙНИ ПОХОДУ ОПЯТЬ НЕТ
-
-
 def train():
     ids_test = pd.read_csv(config.TEST_IDS_PATH)
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
@@ -76,16 +62,6 @@ def predict(model, dataloader, test_size):
         proba = nn.functional.softmax(outputs.data).data
         _, preds = torch.max(proba, 1)
 
-
-print()
-
-time_elapsed = time.time() - since
-print('Training complete in {:.0f}m {:.0f}s'.format(
-    time_elapsed // 60, time_elapsed % 60))
-print('Best val Acc: {:4f}'.format(best_acc))
-# load best model weights
-model.load_state_dict(best_model_wts)
-return model
 
 if __name__ == '__main__':
     train()
