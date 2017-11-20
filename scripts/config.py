@@ -28,3 +28,4 @@ ORIG_HEIGHT = 180
 ORIG_WIDTH = 180
 
 TEST_IDS_PATH = '../input/test_ids.csv'
+PREDICT_PROBS_PATH = '../input/predict_probs.h5'
