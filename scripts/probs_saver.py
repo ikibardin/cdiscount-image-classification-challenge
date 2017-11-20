@@ -8,12 +8,12 @@ class ProbStore:
         self._path = path
         self._length = 0
 
-    def saveProbs(self, data, index):
+    def saveProbs(self, data):
         """
         data -- a DataFrame for one image, index -- index of an image in test
         """
         assert isinstance(data, DataFrame)
-        self._hdf.put(str(index), data, table=True)
+        self._hdf.put(str(self._length), data, table=True)
         self._length += 1
 
     def __len__(self):
