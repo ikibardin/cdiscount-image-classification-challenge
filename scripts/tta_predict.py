@@ -1,4 +1,6 @@
+import torch
 from torchvision import transforms
+from torchvision.transforms import Lambda, ToTensor
 # import torch.nn.functional as F
 import numbers
 
@@ -173,12 +175,14 @@ class TenCrop(object):
         return _ten_crop(img, self.size, self.vertical_flip)
 
 
-def tta_transform(crop, norm_mean, norm_std):
+def tta_transform(norm_mean, norm_std, crop=TenCrop(160)):
     return transforms.Compose([
         transforms.ToPILImage(),
         crop,
-        transforms.ToTensor(),
-        transforms.Normalize(mean=norm_mean, std=norm_std)
+        Lambda(lambda crops: torch.stack(
+            [transforms.Normalize(mean=norm_mean,
+                                  std=norm_std)(ToTensor()(crop))
+             for crop in crops]))
     ])
 
 

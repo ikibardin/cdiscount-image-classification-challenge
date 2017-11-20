@@ -2,31 +2,28 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.autograd import Variable
 import numpy as np
 import pandas as pd
-from torchvision import transforms
-import time
 from tqdm import tqdm
 
 import config
 import loading
-from mymodels.densenet import densenet201
+from mymodels.resnet import resnet50
 import tta_predict
 from probs_saver import ProbStore
 
-LOAD_WEIGHTS_FROM = config.DENSENET_DIR + '0_epoch_val.pth'
-LOAD_OPTIM_FROM = None
+LOAD_WEIGHTS_FROM = config.RESNET50_DIR + '?_epoch_val.pth'
 
 TEST_BATCH_SIZE = 2048
 
-NORM_MEAN = [0.49139968, 0.48215827, 0.44653124]
-NORM_STD = [0.24703233, 0.24348505, 0.26158768]
+NORM_MEAN = [0.485, 0.456, 0.406]
+NORM_STD = [0.229, 0.224, 0.225]
 
 
 def train():
     ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    ids_test = ids_test[:100]
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
@@ -41,13 +38,12 @@ def train():
         num_workers=7
     )
 
-    model = densenet201(pretrained=True, num_classes=config.CAT_COUNT)
+    model = resnet50(pretrained=True, num_classes=config.CAT_COUNT)
     assert torch.cuda.is_available()
     model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
     assert LOAD_WEIGHTS_FROM is not None
     model.load_state_dict(torch.load(LOAD_WEIGHTS_FROM))
     model.cuda()
-
     predict(model, dataloader=test_loader, test_size=len(test_loader))
 
 
@@ -55,7 +51,7 @@ def predict(model, dataloader, test_size):
     columns = ['pr_id', 'img_num']
     for i in range(1, config.CAT_COUNT + 1):
         columns.append(str(i))
-    storage = ProbStore()
+    storage = ProbStore(path='../input/predict_probs_resnet50.h5')
     model.train(False)
     transform = tta_predict.tta_transform(NORM_MEAN, NORM_STD)
     for data in tqdm(dataloader,
