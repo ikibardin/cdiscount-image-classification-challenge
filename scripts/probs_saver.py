@@ -1,6 +1,6 @@
-import numpy as np
-from pandas import HDFStore,DataFrame
+from pandas import HDFStore, DataFrame
 from config import PREDICT_PROBS_PATH
+
 
 class ProbStore:
     def __init__(self, path=PREDICT_PROBS_PATH):
@@ -12,7 +12,7 @@ class ProbStore:
         """
         data -- a DataFrame for one image, index -- index of an image in test
         """
-        assert isinstance(data, pd.DataFrame)
+        assert isinstance(data, DataFrame)
         self._hdf.put(str(index), data, table=True)
         self._length += 1
 
