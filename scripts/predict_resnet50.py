@@ -69,18 +69,18 @@ def predict(model, dataloader, test_size):
 
         two_cols = []
         for x, y in zip(product_ids, image_numbers):
-            two_cols += zip([x]*10, [y]*10)   
-        two_cols = np.array(two_cols)         
-#new_ids += [x] * 10
-            
-        #new_ids = np.transpose(new_ids)
-        #new_numbers = []
-        #for x in image_numbers:
+            two_cols += zip([x] * 10, [y] * 10)
+        two_cols = np.array(two_cols, dtype=np.int32)
+        # new_ids += [x] * 10
+
+        # new_ids = np.transpose(new_ids)
+        # new_numbers = []
+        # for x in image_numbers:
         #    new_numbers += [x] * 10
-        #new_numbers = np.transpose(new_numbers)
+        # new_numbers = np.transpose(new_numbers)
         # print(two_cols.shape, proba.data.numpy().shape)
         df = pd.DataFrame(data=np.hstack(
-            [two_cols, proba.data.numpy()]
+            [two_cols, proba.data.numpy().astype('float16')]
         ), columns=columns, index=None)
         storage.saveProbs(df)
 
