@@ -23,7 +23,6 @@ NORM_STD = [0.229, 0.224, 0.225]
 
 def train():
     ids_test = pd.read_csv(config.TEST_IDS_PATH)
-    # ids_test = ids_test[:TEST_BATCH_SIZE]
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
@@ -34,8 +33,8 @@ def train():
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=TEST_BATCH_SIZE,
-        shuffle=True,
-        num_workers=3
+        shuffle=False,
+        num_workers=1
     )
     # print(len(test_loader))
 
@@ -49,9 +48,10 @@ def train():
 
 
 def predict(model, dataloader, test_size):
-    columns = ['pr_id', 'img_num']
+    columns1 = ['pr_id', 'img_num']
+    columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
-        columns.append(str(i))
+        columns2.append(str(i))
     storage = ProbStore(path='../input/predict_probs_resnet50.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
@@ -63,7 +63,7 @@ def predict(model, dataloader, test_size):
         # inputs = [transform(img) for img in inputs]
         inputs = Variable(inputs.cuda(), volatile=True)
         bs, ncrops, c, h, w = inputs.size()
-        assert bs == TEST_BATCH_SIZE and ncrops == 10
+        # assert bs == TEST_BATCH_SIZE and ncrops == 10
         outputs = model(inputs.view(-1, c, h, w))
         proba = nn.functional.softmax(outputs.data).cpu()
 
@@ -79,9 +79,9 @@ def predict(model, dataloader, test_size):
         #    new_numbers += [x] * 10
         # new_numbers = np.transpose(new_numbers)
         # print(two_cols.shape, proba.data.numpy().shape)
-        df = pd.DataFrame(data=np.hstack(
-            [two_cols, proba.data.numpy().astype('float16')]
-        ), columns=columns, index=None, dtype=np.float16)
+        df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1, index=None)
+        df2 = pd.DataFrame(proba.data.numpy().astype('float16'), columns=columns2, index=None, dtype=np.float16)
+        df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)
 
 

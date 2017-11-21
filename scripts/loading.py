@@ -142,7 +142,7 @@ class CdiscountDatasetPandas(Dataset):
 
     def _load_all(self, index):
         product_id = self._img_ids.id.iloc[index]
-        image_number = self._img_ids.image_numb[index]
+        image_number = self._img_ids.image_numb.iloc[index]
         product_id = int(product_id)
         image_number = int(image_number)
         product = self._db.find_one({'_id': product_id})
