@@ -22,7 +22,9 @@ NORM_STD = [0.229, 0.224, 0.225]
 
 
 def train():
-    ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    # ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
+    ids_test = ids_valid
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
@@ -52,7 +54,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/predict_probs_resnet50.h5')
+    storage = ProbStore(path='../input/probs_resnet50_valid.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
@@ -79,8 +81,10 @@ def predict(model, dataloader, test_size):
         #    new_numbers += [x] * 10
         # new_numbers = np.transpose(new_numbers)
         # print(two_cols.shape, proba.data.numpy().shape)
-        df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1, index=None)
-        df2 = pd.DataFrame(proba.data.numpy().astype('float16'), columns=columns2, index=None, dtype=np.float16)
+        df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
+                           index=None)
+        df2 = pd.DataFrame(proba.data.numpy().astype('float16'),
+                           columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)
 
