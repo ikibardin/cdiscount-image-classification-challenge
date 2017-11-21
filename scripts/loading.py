@@ -100,13 +100,17 @@ class CdiscountDatasetPandas(Dataset):
         img_number between 0 and 3
         TEST: list of product_ids
         """
-        assert mode in ('train', 'test')
+        assert mode in ('train', 'test', 'valid')
         # assert isinstance(img_ids, np.array)
         self._img_ids = img_ids_df
         self._transform = transform
         self._client = MongoClient(connect=False)
-        self._mode = mode
-        self._db = self._client.cdiscount[mode]
+        if mode == 'valid':
+            self._db = self._client.cdiscount['train']
+            self._mode = 'test'
+        else:
+            self._mode = mode
+            self._db = self._client.cdiscount[mode]
         self._big_cats = big_cats
         if not self._big_cats:
             self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
@@ -146,6 +150,7 @@ class CdiscountDatasetPandas(Dataset):
         product_id = int(product_id)
         image_number = int(image_number)
         product = self._db.find_one({'_id': product_id})
+        assert product is not None
         # print('%%%%%%%%%%%%%%%% Found', product_id)
         img = _img_from_bytes(product['imgs'][image_number]['picture'])
         if self._transform is not None:
