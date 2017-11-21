@@ -105,10 +105,12 @@ class CdiscountDatasetPandas(Dataset):
         self._img_ids = img_ids_df
         self._transform = transform
         self._client = MongoClient(connect=False)
-        self._db = self._client.cdiscount[mode]
-        self._mode = mode
         if mode == 'valid':
+            self._db = self._client.cdiscount['train']
             self._mode = 'test'
+        else:
+            self._mode = mode
+            self._db = self._client.cdiscount[mode]
         self._big_cats = big_cats
         if not self._big_cats:
             self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
