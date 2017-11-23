@@ -22,7 +22,9 @@ NORM_STD = [0.24703233, 0.24348505, 0.26158768]
 
 
 def train():
-    ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    # ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
+    ids_test = ids_valid
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
@@ -51,7 +53,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/densenet201_test.h5')
+    storage = ProbStore(path='../input/densenet201_valid.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
@@ -65,15 +67,14 @@ def predict(model, dataloader, test_size):
         outputs = model(inputs.view(-1, c, h, w))
         proba = nn.functional.softmax(outputs.data).cpu()
 
-        two_cols = []
-        for x, y in zip(product_ids, image_numbers):
-            two_cols += zip([x] * 10, [y] * 10)
-        two_cols = np.array(two_cols, dtype=np.int32)
+        two_cols = np.array(list(zip(product_ids, image_numbers)))
 
         df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
                            index=None)
-        df2 = pd.DataFrame(proba.data.numpy().astype('float16'),
-                           columns=columns2, index=None, dtype=np.float16)
+        df2 = pd.DataFrame(
+            proba.data.view(-1, 10, config.CAT_COUNT).sum(
+                dim=1).numpy().astype('float16'),
+            columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)
 
