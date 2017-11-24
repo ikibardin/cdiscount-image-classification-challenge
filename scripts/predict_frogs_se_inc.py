@@ -28,7 +28,7 @@ def train():
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
         mode='test',
-        transform=tta_predict.no_tta_trans(NORM_MEAN, NORM_STD))
+        transform=tta_predict.frogs_transform())
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,

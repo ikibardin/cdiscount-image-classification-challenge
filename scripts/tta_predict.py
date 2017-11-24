@@ -2,6 +2,7 @@ import torch
 from torchvision import transforms
 from torchvision.transforms import Lambda, ToTensor
 # import torch.nn.functional as F
+import cv2
 import numbers
 
 try:
@@ -191,5 +192,32 @@ def no_tta_trans(norm_mean, norm_std):
         transforms.ToPILImage(),
         transforms.ToTensor(),
         transforms.Normalize(mean=norm_mean,
-                                  std=norm_std)
+                             std=norm_std)
     ])
+
+
+def _pytorch_image_to_tensor_transform(image):
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = image.transpose((2, 0, 1))
+    tensor = torch.from_numpy(image).float().div(255)
+
+    tensor[0] = (tensor[0] - mean[0]) / std[0]
+    tensor[1] = (tensor[1] - mean[1]) / std[1]
+    tensor[2] = (tensor[2] - mean[2]) / std[2]
+
+    return tensor
+
+
+def _image_to_tensor_transform(image):
+    tensor = _pytorch_image_to_tensor_transform(image)
+    tensor[0] = tensor[0] * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
+    tensor[1] = tensor[1] * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
+    tensor[2] = tensor[2] * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
+    return tensor
+
+
+def frogs_transform():
+    return _image_to_tensor_transform
