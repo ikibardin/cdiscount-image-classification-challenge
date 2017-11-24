@@ -189,5 +189,7 @@ def tta_transform(norm_mean, norm_std, crop=TenCrop(160)):
 def no_tta_trans(norm_mean, norm_std):
     return transforms.Compose([
         transforms.ToPILImage(),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=norm_mean,
+                                  std=norm_std)
     ])
