@@ -28,7 +28,7 @@ def train():
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
         mode='test',
-        transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
+        transform=tta_predict.no_tta_trans(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -60,16 +60,17 @@ def predict(model, dataloader, test_size):
         assert torch.cuda.is_available()
 
         inputs = Variable(inputs.cuda(), volatile=True)
-        bs, ncrops, c, h, w = inputs.size()
+        bs, c, h, w = inputs.size()
         # assert bs == TEST_BATCH_SIZE and ncrops == 10
-        outputs = model(inputs.view(-1, c, h, w))
+        outputs = model(inputs)
         proba = nn.functional.softmax(outputs.data).cpu()
 
-        two_cols = np.array(list(zip(product_ids, image_numbers)))
+        two_cols = np.array(list(zip(product_ids, image_numbers)),
+                            dtype=np.int32)
 
         df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
                            index=None)
-        df2 = pd.DataFrame(proba.data.view(-1, 10, config.CAT_COUNT).sum(dim=1).numpy().astype('float16'),
+        df2 = pd.DataFrame(proba.data.numpy().astype('float16'),
                            columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)

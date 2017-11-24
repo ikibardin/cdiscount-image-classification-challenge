@@ -186,5 +186,8 @@ def tta_transform(norm_mean, norm_std, crop=TenCrop(160)):
     ])
 
 
-def tta_predict_on_batch(model, inputs, transform):
-    inputs = [transform(img) for img in inputs]
+def no_tta_trans(norm_mean, norm_std):
+    return transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.ToTensor()
+    ])

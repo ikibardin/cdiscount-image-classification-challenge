@@ -17,7 +17,8 @@ class Inception3(nn.Module):
 
         keys = list(state_dict.keys())
         for key in keys:
-            if key in skip: continue
+            if key in skip:
+                continue
             state_dict[key] = pytorch_state_dict[key]
 
         self.load_state_dict(state_dict)
