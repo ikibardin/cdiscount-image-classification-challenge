@@ -29,7 +29,7 @@ def train():
 
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
-        mode='test',
+        mode='valid',
         transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(

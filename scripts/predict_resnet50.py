@@ -22,14 +22,14 @@ NORM_STD = [0.229, 0.224, 0.225]
 
 
 def train():
-    # ids_test = pd.read_csv(config.TEST_IDS_PATH)
-    ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
-    ids_test = ids_valid
+    ids_test = pd.read_csv(config.TEST_IDS_PATH)[:TEST_BATCH_SIZE]
+    #ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
+    #ids_test = ids_valid
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
-        mode='valid',
+        mode='test',
         transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(
@@ -54,7 +54,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/probs_resnet50_valid.h5')
+    storage = ProbStore(path='../input/test_resnet_TENSOR.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
@@ -68,11 +68,18 @@ def predict(model, dataloader, test_size):
         # assert bs == TEST_BATCH_SIZE and ncrops == 10
         outputs = model(inputs.view(-1, c, h, w))
         proba = nn.functional.softmax(outputs.data).cpu()
+	
+        two_cols = np.array(list(zip(product_ids, image_numbers)), dtype=np.int32)
 
-        two_cols = []
-        for x, y in zip(product_ids, image_numbers):
-            two_cols += zip([x] * 10, [y] * 10)
-        two_cols = np.array(two_cols, dtype=np.int32)
+        df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
+                           index=None)
+        df2 = pd.DataFrame(proba.data.view(-1, 10, config.CAT_COUNT).sum(dim=1).numpy().astype('float16'),
+                           columns=columns2, index=None, dtype=np.float16)
+
+        #two_cols = []
+        #for x, y in zip(product_ids, image_numbers):
+        #    two_cols += zip([x] * 10, [y] * 10)
+        #two_cols = np.array(two_cols, dtype=np.int32)
         # new_ids += [x] * 10
 
         # new_ids = np.transpose(new_ids)
@@ -81,10 +88,6 @@ def predict(model, dataloader, test_size):
         #    new_numbers += [x] * 10
         # new_numbers = np.transpose(new_numbers)
         # print(two_cols.shape, proba.data.numpy().shape)
-        df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
-                           index=None)
-        df2 = pd.DataFrame(proba.data.numpy().astype('float16'),
-                           columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)
 
