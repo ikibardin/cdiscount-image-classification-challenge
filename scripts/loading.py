@@ -39,60 +39,6 @@ def _img_from_bytes(img_bytes):
     return img
 
 
-class CdiscountDatasetFromPickledList(Dataset):
-    def __init__(self, img_ids, mode, transform=None, big_cats=False):
-        """
-        :param img_ids: TRAIN: list of tuples (product_id, img_number),
-        img_number between 0 and 3
-        TEST: list of product_ids
-        """
-        assert mode in ('train', 'test')
-        # assert isinstance(img_ids, np.array)
-        self._img_ids = img_ids
-        self._transform = transform
-        self._client = MongoClient(connect=False)
-        self._mode = mode
-        self._db = self._client.cdiscount[mode]
-        self._big_cats = big_cats
-        if not self._big_cats:
-            self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
-        else:
-            self._cat_to_label = load_cat_to_big_label()
-
-    def __len__(self):
-        return len(self._img_ids)
-
-    def __getitem__(self, item):
-        """
-        :param item:
-        :return: In train mode -- tuple (img, label)
-                 In test mode -- dict with '_id' and 'imgs' list
-        """
-        if self._mode == 'train':
-            return self._load_item_train(item)
-        elif self._mode == 'test':
-            return self._load_item_test(item)
-        else:
-            raise ValueError('Unexpected mode.')
-
-    def _load_item_train(self, item):
-        assert self._mode == 'train'
-        product_id, image_number = self._img_ids[item]
-        product_id = int(product_id)
-        image_number = int(image_number)
-        product = self._db.find_one({'_id': product_id})
-        # print('%%%%%%%%%%%%%%%% Found', product_id)
-        img = _img_from_bytes(product['imgs'][image_number]['picture'])
-        if self._transform is not None:
-            img = self._transform(img)
-        label = self._cat_to_label[product['category_id']]
-        return img, label
-
-    def _load_item_test(self, item):
-        assert self._mode == 'test'
-        raise RuntimeError('Not implemented')
-
-
 class CdiscountDatasetPandas(Dataset):
     def __init__(self, img_ids_df, mode, transform=None, big_cats=False):
         """
@@ -206,3 +152,40 @@ class ArturDataset(Dataset):
     def _load_item_test(self, item):
         assert self._mode == 'test'
         raise RuntimeError('Not implemented')
+
+
+VAL_BATCH = 2048
+
+
+class StackingDataset(Dataset):
+    def __init__(self, paths):
+        self._paths = paths
+        self._stores = []
+        for path in self._paths:
+            self._stores.append(pd.HDFStore(path))
+        assert len(self._stores) > 0
+        self._keys = self._stores[0].keys()
+        for store in self._stores:
+            assert len(self._keys) == len(store), \
+                'keys len {}; store len {}'.format(len(self._keys),
+                                                   len(store))
+        self._len = (len(self._keys) - 1) * VAL_BATCH \
+                    + self._stores[0].select(self._keys[-1]).shape[0]
+
+    def features_count(self):
+        return len(self._paths) * config.CAT_COUNT
+
+    def __len__(self):
+        return self._len
+
+    def __getitem__(self, item):
+        key_ind = item / VAL_BATCH
+        tables = self._select_tables(self._keys[key_ind])
+        raise NotImplementedError('xD')
+
+    def _select_tables(self, key):
+        tables = []
+        for store in self._stores:
+            tables.append(store.select(key))
+        assert len(tables) == len(self._stores)
+        return tables
