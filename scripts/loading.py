@@ -192,7 +192,7 @@ class StackingDataset(Dataset):
         tables = []
         for path in paths:
             store = pd.HDFStore(path)
-            table = store.select('0')
+            table = store.select('d0')
             table.sort_values(by=['pr_id, img_num'], inplace=True)
             tables.append(table)
         assert len(tables) > 0
