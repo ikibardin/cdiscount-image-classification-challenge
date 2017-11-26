@@ -40,7 +40,7 @@ def make_loader(ids, dataset):
 def main():
     # define the neural network (multilayer perceptron) and move the network into GPU
     print('Loading dataset...')
-    dataset = StackingDataset(paths=PATHS, transform=transforms.ToTensor())
+    dataset = StackingDataset(paths=PATHS, transform=transforms.ToTensor(), meta_path='../../val.csv')
     print('Loaded dataset with shape {}'.format(dataset.shape()))
     all_ids = np.arange(0, len(dataset), 1)
     ids_train, ids_valid = train_test_split(all_ids, test_size=0.2,
