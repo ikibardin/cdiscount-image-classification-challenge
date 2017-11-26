@@ -158,34 +158,51 @@ VAL_BATCH = 2048
 
 
 class StackingDataset(Dataset):
-    def __init__(self, paths):
-        self._paths = paths
-        self._stores = []
-        for path in self._paths:
-            self._stores.append(pd.HDFStore(path))
-        assert len(self._stores) > 0
-        self._keys = self._stores[0].keys()
-        for store in self._stores:
-            assert len(self._keys) == len(store), \
-                'keys len {}; store len {}'.format(len(self._keys),
-                                                   len(store))
-        self._len = (len(self._keys) - 1) * VAL_BATCH \
-                    + self._stores[0].select(self._keys[-1]).shape[0]
+    def __init__(self, paths, meta_path, transform=None):
+        self._tables, self._shape = self._load_tables(paths)
+        self._meta = pd.read_csv(meta_path)
+        self._meta = self._meta[self._meta['train'] == 0.]
+        self._transform = transform
 
-    def features_count(self):
-        return len(self._paths) * config.CAT_COUNT
+    def shape(self):
+        return self._shape
 
     def __len__(self):
-        return self._len
+        return self._shape[0]
 
     def __getitem__(self, item):
-        key_ind = item / VAL_BATCH
-        tables = self._select_tables(self._keys[key_ind])
-        raise NotImplementedError('xD')
+        id_ = self._tables[0].pr_id.iloc[item]
+        img_num = self._tables[0].img_num.iloc[item]
+        features = []
+        for table in self._tables:
+            features.append(
+                np.array(table.iloc[item].drop(['pr_id', 'img_num'],
+                                               axis=1, inplace=False)))
+        features = np.hstack(features)
+        assert features.shape == (1, self.shape()[1])
+        if self._transform is not None:
+            features = self._transform(features)
+        label = self._meta[
+            self._meta.id == id_ and self._meta.img_num == img_num
+            ].cat.iloc[0]  # topkek xD ))))
+        return id_, img_num, features, label
 
-    def _select_tables(self, key):
+    @staticmethod
+    def _load_tables(paths):
         tables = []
-        for store in self._stores:
-            tables.append(store.select(key))
-        assert len(tables) == len(self._stores)
-        return tables
+        for path in paths:
+            store = pd.HDFStore(path)
+            table = store.select('0')
+            table.sort_values(by=['pr_id, img_num'], inplace=True)
+            tables.append(table)
+        assert len(tables) > 0
+        shape = tables[0].shape
+        ids = np.array(tables[0].pr_id)
+        img_nums = np.array(tables[0].img_num)
+        for table in tables:
+            assert table.shape == shape, \
+                'table.shape={}; shape={}'.format(table.shape, shape)
+            assert (ids == np.array(table.pr_id)).all()
+            assert (img_nums == np.array(table.img_num)).all()
+        stacked_shape = (shape[0], shape[1] * len(tables))
+        return tables, stacked_shape

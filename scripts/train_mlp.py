@@ -1,78 +1,131 @@
 from __future__ import print_function
+import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
+from torchvision import transforms
+from sklearn.model_selection import train_test_split
 
 import config
 from mymodels.mlp import MLP
+from loading import StackingDataset
 
 BATCH_SIZE = 500  # Number of samples in each batch
-EPOCHS = 100  # Number of epochs to train the network
+
+INITIAL_EPOCH = 0
+EPOCHS = 1000  # Number of epochs to train the network
+
+PATHS = ['../../resnet_val_comp.h5',
+         '../../densenet201_valid.h5']
+
+PHASE_TRAIN = 'train'
+PHASE_VAL = 'val'
 
 
-def next_batch(train=True):
-    # A function to read the next batch of MNIST images and labels
-    # Args:
-    #   train: a boolean array, if True it will return the next train batch, otherwise the next test batch
-    # Returns:
-    #   batch_img: a pytorch Variable of size [batch_size, 748].
-    #   batch_label: a pytorch Variable of size [batch_size, ].
-
-    if train:
-        batch_img, batch_label = mnist.train.next_batch(BATCH_SIZE)
-    else:
-        batch_img, batch_label = mnist.test.next_batch(BATCH_SIZE)
-
-    batch_label = torch.from_numpy(
-        batch_label).long()  # convert the numpy array into torch tensor
-    batch_label = Variable(
-        batch_label).cuda()  # create a torch variable and transfer it into GPU
-
-    batch_img = torch.from_numpy(
-        batch_img).float()  # convert the numpy array into torch tensor
-    batch_img = Variable(
-        batch_img).cuda()  # create a torch variable and transfer it into GPU
-    return batch_img, batch_label
+def make_loader(ids, dataset):
+    sampler = torch.utils.data.sampler.SubsetRandomSampler(ids)
+    loader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        sampler=sampler,
+        num_workers=0
+    )
+    return loader
 
 
 def main():
     # define the neural network (multilayer perceptron) and move the network into GPU
-    net = MLP(config.CAT_COUNT * 2, config.CAT_COUNT)
-    net.cuda()
+    print('Loading dataset...')
+    dataset = StackingDataset(paths=PATHS, transform=transforms.ToTensor())
+    print('Loaded dataset with shape {}'.format(dataset.shape()))
+    all_ids = np.arange(0, len(dataset), 1)
+    ids_train, ids_valid = train_test_split(all_ids, test_size=0.2,
+                                            random_state=0)
+    print('Training on {} samples, validating on {} samples'.format(
+        len(ids_train),
+        len(ids_valid)))
 
-    # calculate the number of batches per epoch
-    batch_per_ep = mnist.train.num_examples // BATCH_SIZE
+    train_loader = make_loader(ids_train, dataset)
+    valid_loader = make_loader(ids_valid, dataset)
+
+    loaders = {
+        PHASE_TRAIN: train_loader,
+        PHASE_VAL: valid_loader
+    }
+
+    dataset_sizes = {
+        PHASE_TRAIN: len(ids_train),
+        PHASE_VAL: len(ids_valid)
+    }
+
+    model = MLP(config.CAT_COUNT * len(PATHS), config.CAT_COUNT)
+    model.cuda()
 
     # define the loss (criterion) and create an optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr)
+    criterion = nn.CrossEntropyLoss(size_average=False)
+    criterion.cuda()
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    for ep in range(EPOCHS):  # epochs loop
-        for batch_n in range(batch_per_ep):  # batches loop
-            features, labels = next_batch()
+    for epoch in range(EPOCHS):  # epochs loop
+        print('Epoch {}/{}'.format(epoch, EPOCHS - 1))
+        print('-' * 20)  # Each epoch has a training and validation phase
+        for phase in [PHASE_VAL, PHASE_TRAIN]:
+            if phase == PHASE_TRAIN:
+                model.train(True)  # Set model to training mode
+            else:
+                model.train(False)  # Set model to evaluate mode
 
-            # Reset gradients
-            optimizer.zero_grad()
+            running_loss = 0.0
+            running_corrects = 0
 
-            # Forward pass
-            output = net(features)
-            loss = criterion(output, labels)
+            # Iterate over data.
+            for data in tqdm(loaders[phase]):
+                # get the inputs
+                ids, img_nums, inputs, labels = data
+                # wrap them in Variable
+                assert torch.cuda.is_available()
+                if phase == PHASE_TRAIN:
+                    inputs = Variable(inputs.cuda())
+                    labels = Variable(labels.cuda(async=True))
+                else:
+                    inputs = Variable(inputs.cuda(), volatile=True)
+                    labels = Variable(labels.cuda(async=True),
+                                      volatile=True)
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                # forward
+                outputs = model(inputs)
+                proba = nn.functional.softmax(outputs.data).data
+                _, preds = torch.max(proba, 1)
+                loss = criterion(outputs, labels)
+                # backward + optimize only if in training phase
+                if phase == PHASE_TRAIN:
+                    loss.backward()
+                    optimizer.step()
+                # statistics
+                running_loss += loss.data[0]
+                running_corrects += torch.sum(preds == labels.data)
 
-            # Backward pass and updates
-            loss.backward()  # calculate the gradients (backpropagation)
-            optimizer.step()  # update the weights
+            epoch_loss = running_loss / dataset_sizes[phase]
+            epoch_acc = running_corrects / dataset_sizes[phase]
 
-            if not batch_n % 10:
-                print('epoch: {} - batch: {}/{} \n'.format(ep, batch_n,
-                                                           batch_per_ep))
-                print('loss: ', loss.data[0])
-
-    # test the accuracy on a batch of test data
-    features, labels = next_batch(train=False)
-    print('\n \n Test accuracy: ', net.accuracy(features, labels))
+            print('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                phase, epoch_loss, epoch_acc)
+            )
+            torch.save(model.state_dict(),
+                       config.MLP_DIR + '{}_epoch_{}.pth'.format(
+                           epoch, phase))
+            torch.save(optimizer.state_dict(),
+                       config.MLP_DIR + 'optim.pth')
+            # deep copy the model
+            if phase == PHASE_VAL and epoch_acc > best_acc:
+                best_acc = epoch_acc
+                best_model_wts = model.state_dict()
+                print('Best weights updated!')
 
 
 if __name__ == '__main__':
