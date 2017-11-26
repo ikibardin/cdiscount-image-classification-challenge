@@ -177,7 +177,8 @@ class StackingDataset(Dataset):
         for table in self._tables:
             features.append(
                 np.array(table.iloc[item].drop(['pr_id', 'img_num'],
-                                               axis=1, inplace=False)))
+                                               inplace=False))
+            )
         features = np.hstack(features)
         assert features.shape == (1, self.shape()[1])
         if self._transform is not None:
