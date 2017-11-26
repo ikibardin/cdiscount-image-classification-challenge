@@ -198,7 +198,7 @@ class StackingDataset(Dataset):
                 arr.append(store[i])
             table = pd.concat(arr, copy=False)
             del arr
-            table.sort_values(by=['pr_id, img_num'], inplace=True)
+            table.sort_values(by=['pr_id', 'img_num'], inplace=True)
             tables.append(table)
         assert len(tables) > 0
         shape = tables[0].shape
