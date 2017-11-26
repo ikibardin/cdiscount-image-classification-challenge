@@ -13,7 +13,7 @@ import config
 from mymodels.mlp import MLP
 from loading import StackingDataset
 
-BATCH_SIZE = 500  # Number of samples in each batch
+BATCH_SIZE = 512  # Number of samples in each batch
 
 INITIAL_EPOCH = 0
 EPOCHS = 1000  # Number of epochs to train the network
@@ -37,10 +37,15 @@ def make_loader(ids, dataset):
     return loader
 
 
+def totensor(features):
+    return torch.from_numpy(features).float()
+
+
 def main():
     # define the neural network (multilayer perceptron) and move the network into GPU
+    torch.set_num_threads(8)
     print('Loading dataset...')
-    dataset = StackingDataset(paths=PATHS, transform=transforms.ToTensor(), meta_path='../../val.csv')
+    dataset = StackingDataset(paths=PATHS, transform=totensor, meta_path='../../val.csv')
     print('Loaded dataset with shape {}'.format(dataset.shape()))
     all_ids = np.arange(0, len(dataset), 1)
     ids_train, ids_valid = train_test_split(all_ids, test_size=0.2,
@@ -73,7 +78,7 @@ def main():
     for epoch in range(EPOCHS):  # epochs loop
         print('Epoch {}/{}'.format(epoch, EPOCHS - 1))
         print('-' * 20)  # Each epoch has a training and validation phase
-        for phase in [PHASE_VAL, PHASE_TRAIN]:
+        for phase in [PHASE_TRAIN, PHASE_VAL]:
             if phase == PHASE_TRAIN:
                 model.train(True)  # Set model to training mode
             else:
@@ -122,10 +127,10 @@ def main():
             torch.save(optimizer.state_dict(),
                        config.MLP_DIR + 'optim.pth')
             # deep copy the model
-            if phase == PHASE_VAL and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = model.state_dict()
-                print('Best weights updated!')
+            #if phase == PHASE_VAL and epoch_acc > best_acc:
+             #   best_acc = epoch_acc
+              #  best_model_wts = model.state_dict()
+               # print('Best weights updated!')
 
 
 if __name__ == '__main__':

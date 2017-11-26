@@ -163,6 +163,7 @@ class StackingDataset(Dataset):
         self._meta = pd.read_csv(meta_path)
         self._meta = self._meta[self._meta['train'] == 0.]
         self._transform = transform
+        self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
 
     def shape(self):
         return self._shape
@@ -179,12 +180,12 @@ class StackingDataset(Dataset):
                 np.array(table.iloc[item].drop(['pr_id', 'img_num'], inplace=False))
             )
         features = np.hstack(features)
-        assert features.shape == (1, self.shape()[1])
+        # assert features.shape == (1, self.shape()[1] - 4), 'features shape {}; dataset shape[1] {}'.format(features.shape, self.shape()[1])
         if self._transform is not None:
             features = self._transform(features)
-        label = self._meta[
-            self._meta.id == id_ and self._meta.img_num == img_num
-            ].cat.iloc[0]  # topkek xD ))))
+        tmp = self._meta[self._meta.id == id_]
+        cat = tmp[tmp.image_numb == img_num].cat.iloc[0]  # topkek xD ))))
+        label = self._cat_to_label[cat]
         return id_, img_num, features, label
 
     @staticmethod
