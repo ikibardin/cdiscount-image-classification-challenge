@@ -63,11 +63,11 @@ def main():
     }
 
     model = MLP(config.CAT_COUNT * len(PATHS), config.CAT_COUNT)
-    model.cuda()
+    # model.cuda()
 
     # define the loss (criterion) and create an optimizer
     criterion = nn.CrossEntropyLoss(size_average=False)
-    criterion.cuda()
+    # criterion.cuda()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     for epoch in range(EPOCHS):  # epochs loop
@@ -87,13 +87,13 @@ def main():
                 # get the inputs
                 ids, img_nums, inputs, labels = data
                 # wrap them in Variable
-                assert torch.cuda.is_available()
+                # assert torch.cuda.is_available()
                 if phase == PHASE_TRAIN:
-                    inputs = Variable(inputs.cuda())
-                    labels = Variable(labels.cuda(async=True))
+                    inputs = Variable(inputs)
+                    labels = Variable(labels)
                 else:
-                    inputs = Variable(inputs.cuda(), volatile=True)
-                    labels = Variable(labels.cuda(async=True),
+                    inputs = Variable(inputs, volatile=True)
+                    labels = Variable(labels,
                                       volatile=True)
                 # zero the parameter gradients
                 optimizer.zero_grad()
