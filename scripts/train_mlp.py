@@ -18,8 +18,9 @@ BATCH_SIZE = 512  # Number of samples in each batch
 INITIAL_EPOCH = 0
 EPOCHS = 1000  # Number of epochs to train the network
 
-PATHS = ['../../resnet_val_comp.h5',
-         '../../densenet201_valid.h5']
+PATHS = ['../input/resnet50_valid_corr.h5',
+         '../input/dense_valid_corr.h5',
+         '../input/resnet101_valid.h5']
 
 PHASE_TRAIN = 'train'
 PHASE_VAL = 'val'
@@ -45,7 +46,8 @@ def main():
     # define the neural network (multilayer perceptron) and move the network into GPU
     torch.set_num_threads(8)
     print('Loading dataset...')
-    dataset = StackingDataset(paths=PATHS, transform=totensor, meta_path='../../val.csv')
+    dataset = StackingDataset(paths=PATHS, transform=totensor,
+                              meta_path='../../val.csv')
     print('Loaded dataset with shape {}'.format(dataset.shape()))
     all_ids = np.arange(0, len(dataset), 1)
     ids_train, ids_valid = train_test_split(all_ids, test_size=0.2,
@@ -126,11 +128,6 @@ def main():
                            epoch, phase))
             torch.save(optimizer.state_dict(),
                        config.MLP_DIR + 'optim.pth')
-            # deep copy the model
-            #if phase == PHASE_VAL and epoch_acc > best_acc:
-             #   best_acc = epoch_acc
-              #  best_model_wts = model.state_dict()
-               # print('Best weights updated!')
 
 
 if __name__ == '__main__':
