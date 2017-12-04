@@ -43,12 +43,10 @@ def totensor(features):
 
 
 def main():
-    # define the neural network (multilayer perceptron) and move the network into GPU
-    torch.set_num_threads(8)
     print('Loading dataset...')
     dataset = StackingDataset(paths=PATHS, transform=totensor,
-                              meta_path='../../val.csv')
-    print('Loaded dataset with shape {}'.format(dataset.shape()))
+                              meta_path='../input/val.csv')
+    print('Loaded dataset with length {}'.format(len(dataset)))
     all_ids = np.arange(0, len(dataset), 1)
     ids_train, ids_valid = train_test_split(all_ids, test_size=0.2,
                                             random_state=0)
@@ -70,11 +68,11 @@ def main():
     }
 
     model = MLP(config.CAT_COUNT * len(PATHS), config.CAT_COUNT)
-    # model.cuda()
+    model.cuda()
 
     # define the loss (criterion) and create an optimizer
     criterion = nn.CrossEntropyLoss(size_average=False)
-    # criterion.cuda()
+    criterion.cuda()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     for epoch in range(EPOCHS):  # epochs loop
@@ -94,13 +92,13 @@ def main():
                 # get the inputs
                 ids, img_nums, inputs, labels = data
                 # wrap them in Variable
-                # assert torch.cuda.is_available()
+                assert torch.cuda.is_available()
                 if phase == PHASE_TRAIN:
-                    inputs = Variable(inputs)
-                    labels = Variable(labels)
+                    inputs = Variable(inputs.cuda())
+                    labels = Variable(labels.cuda())
                 else:
-                    inputs = Variable(inputs, volatile=True)
-                    labels = Variable(labels,
+                    inputs = Variable(inputs.cuda(), volatile=True)
+                    labels = Variable(labels.cuda(),
                                       volatile=True)
                 # zero the parameter gradients
                 optimizer.zero_grad()

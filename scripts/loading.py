@@ -154,33 +154,34 @@ class ArturDataset(Dataset):
         raise RuntimeError('Not implemented')
 
 
-VAL_BATCH = 2048
+VAL_BATCH = 256
 
 
 class StackingDataset(Dataset):
     def __init__(self, paths, meta_path, transform=None):
-        self._tables, self._shape = self._load_tables(paths)
+        self._storages = self._load_storages(paths)
+        assert len(self._storages) > 0
         self._meta = pd.read_csv(meta_path)
         self._meta = self._meta[self._meta['train'] == 0.]
+        self._length = self._meta.shape[0]
         self._transform = transform
         self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
 
-    def shape(self):
-        return self._shape
-
     def __len__(self):
-        return self._shape[0]
+        return self._length
 
     def __getitem__(self, item):
-        id_ = self._tables[0].pr_id.iloc[item]
-        img_num = self._tables[0].img_num.iloc[item]
+        key = 'd' + str(item / VAL_BATCH)
+        tables = self._select_tables(key)
+        index = item % VAL_BATCH
+        id_, img_num = self._select_id_and_img_num(tables, index)
+
         features = []
-        for table in self._tables:
+        for table in tables:
             features.append(
-                np.array(table.iloc[item].drop(['pr_id', 'img_num'], inplace=False))
-            )
+                np.array(table.iloc[index].drop(['pr_id', 'img_num'],
+                                                inplace=False)))
         features = np.hstack(features)
-        # assert features.shape == (1, self.shape()[1] - 4), 'features shape {}; dataset shape[1] {}'.format(features.shape, self.shape()[1])
         if self._transform is not None:
             features = self._transform(features)
         tmp = self._meta[self._meta.id == id_]
@@ -189,26 +190,32 @@ class StackingDataset(Dataset):
         return id_, img_num, features, label
 
     @staticmethod
-    def _load_tables(paths):
-        tables = []
+    def _load_storages(paths):
+        storages = []
         for path in paths:
-            store = pd.HDFStore(path)
-            store_keys = store.keys()
-            arr = []
-            for i in store_keys:
-                arr.append(store[i])
-            table = pd.concat(arr, copy=False)
-            del arr
-            table.sort_values(by=['pr_id', 'img_num'], inplace=True)
-            tables.append(table)
+            print("Loading storage at {}".format(path))
+            storage = pd.HDFStore(path)
+            print("Success, {} tables in storage.".format(len(storage)))
+            storages.append(storage)
+        return storages
+
+    def _select_tables(self, key):
+        tables = []
+        for storage in self._storages:
+            tables.append(storage.select(key))
+        return tables
+
+    @staticmethod
+    def _select_id_and_img_num(tables, index):
         assert len(tables) > 0
-        shape = tables[0].shape
-        ids = np.array(tables[0].pr_id)
-        img_nums = np.array(tables[0].img_num)
+        ids = []
+        img_nums = []
         for table in tables:
-            assert table.shape == shape, \
-                'table.shape={}; shape={}'.format(table.shape, shape)
-            assert (ids == np.array(table.pr_id)).all()
-            assert (img_nums == np.array(table.img_num)).all()
-        stacked_shape = (shape[0], shape[1] * len(tables))
-        return tables, stacked_shape
+            ids.append(table.pr_id.iloc[index])
+            img_nums.append(table.img_num.iloc[index])
+        id_ = ids[0]
+        img_num = img_nums[0]
+        for id1, num1 in zip(ids, img_nums):
+            assert id_ == id1
+            assert img_num == num1
+        return id_, img_num
