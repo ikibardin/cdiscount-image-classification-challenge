@@ -65,15 +65,15 @@ def predict(model, dataloader, test_size):
         bs, ncrops, c, h, w = inputs.size()
         # assert bs == TEST_BATCH_SIZE and ncrops == 10
         outputs = model(inputs.view(-1, c, h, w))
-        proba = nn.functional.softmax(outputs.data).cpu()
+        proba = nn.functional.softmax(outputs.data)
 
         two_cols = np.array(list(zip(product_ids, image_numbers)))
 
         df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
                            index=None)
         df2 = pd.DataFrame(
-            proba.data.view(-1, 10, config.CAT_COUNT).sum(
-                dim=1).numpy().astype('float16'),
+            proba.data.view(-1, 10, config.CAT_COUNT).mean(
+                dim=1).cpu().numpy().astype('float16'),
             columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)

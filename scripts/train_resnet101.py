@@ -14,10 +14,10 @@ import config
 import loading
 from mymodels.resnet import resnet101
 
-LOAD_WEIGHTS_FROM = None
+LOAD_WEIGHTS_FROM = config.RESNET101_DIR + '4_epoch_val.pth'
 LOAD_OPTIM_FROM = None
 
-INITIAL_EPOCH = 0
+INITIAL_EPOCH = 20
 
 BATCH_SIZE = 128
 VAL_BATCH_SIZE = 2048
@@ -41,6 +41,7 @@ def train():
         transform=transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomCrop(160),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=norm_mean, std=norm_std)
         ]),
@@ -50,7 +51,7 @@ def train():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=1
+        num_workers=3
     )
     valid_dataset = loading.CdiscountDatasetPandas(
         ids_valid,
@@ -87,13 +88,13 @@ def train():
     criterion.cuda()
 
     # Freeze layers
-    for param in model.parameters():
-        param.requires_grad = False
-    for param in model.module.fc.parameters():
-        param.requires_grad = True
     # for param in model.parameters():
-    #   param.requires_grad = True
-    optimizer = optim.Adam(model.module.fc.parameters(), lr=0.0001)
+    #     param.requires_grad = False
+    # for param in model.module.fc.parameters():
+    #     param.requires_grad = True
+    for param in model.parameters():
+        param.requires_grad = True
+    optimizer = optim.Adam(model.parameters(), lr=0.00001)
     if LOAD_OPTIM_FROM is not None:
         optimizer.load_state_dict(torch.load(LOAD_OPTIM_FROM))
     model = train_model(model, dataloaders,

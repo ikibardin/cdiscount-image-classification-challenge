@@ -51,7 +51,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/inception3_test.h5')
+    storage = ProbStore(path='../input/inc3_test_xDDD.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs

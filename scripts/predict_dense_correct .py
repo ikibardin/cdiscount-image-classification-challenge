@@ -9,39 +9,40 @@ from tqdm import tqdm
 
 import config
 import loading
-from mymodels.excited_inception_v3 import SEInception3
+from mymodels.densenet import densenet201
 import tta_predict
 from probs_saver import ProbStore
 
-LOAD_WEIGHTS_FROM = '../frogs-code/release/trained_models/LB=0.69673_se-inc3_00026000_model.pth'
+LOAD_WEIGHTS_FROM = config.DENSENET_DIR + '27_epoch_val.pth'
 
 TEST_BATCH_SIZE = 256
 
-NORM_MEAN = [0.485, 0.456, 0.406]
-NORM_STD = [0.229, 0.224, 0.225]
-
+NORM_MEAN = [0.49139968, 0.48215827, 0.44653124]
+NORM_STD = [0.24703233, 0.24348505, 0.26158768]
 
 def train():
-    ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    # ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
+    ids_test = ids_valid
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
-        mode='test',
-        transform=tta_predict.frogs_transform())
+        mode='valid',
+        transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=TEST_BATCH_SIZE,
         shuffle=False,
-        num_workers=0
+        num_workers=1
     )
-    assert torch.cuda.is_available()
     # print(len(test_loader))
-    model = SEInception3((3, 180, 180), num_classes=config.CAT_COUNT)
-    assert LOAD_WEIGHTS_FROM is not None
-    model.load_pretrain_pytorch_file(LOAD_WEIGHTS_FROM, skip=[])
+    model = densenet201(pretrained=True, num_classes=config.CAT_COUNT)
+    assert torch.cuda.is_available()
     model = nn.DataParallel(model, device_ids=[0, 1]).cuda()
+    assert LOAD_WEIGHTS_FROM is not None
+    model.load_state_dict(torch.load(LOAD_WEIGHTS_FROM))
     model.cuda()
     predict(model, dataloader=test_loader, test_size=len(test_loader))
 
@@ -51,7 +52,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/se_inc_test.h5')
+    storage = ProbStore(path='../input/dense_valid_corr.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
@@ -60,7 +61,7 @@ def predict(model, dataloader, test_size):
         assert torch.cuda.is_available()
 
         inputs = Variable(inputs.cuda(), volatile=True)
-        bs, c, h, w = inputs.size()
+        bs, ncrops, c, h, w = inputs.size()
         # assert bs == TEST_BATCH_SIZE and ncrops == 10
         outputs = model(inputs.view(-1, c, h, w))
         proba = nn.functional.softmax(outputs.data).cpu()
@@ -70,8 +71,8 @@ def predict(model, dataloader, test_size):
         df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
                            index=None)
         df2 = pd.DataFrame(
-            proba.data.numpy().astype(
-                'float16'),
+            proba.data.view(-1, 10, config.CAT_COUNT).mean(
+                dim=1).numpy().astype('float16'),
             columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)

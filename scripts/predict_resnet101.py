@@ -23,13 +23,13 @@ NORM_STD = [0.229, 0.224, 0.225]
 
 def train():
     ids_test = pd.read_csv(config.TEST_IDS_PATH)
-    # ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
-    # ids_test = ids_valid
+    ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
+    ids_test = ids_valid
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
-        mode='test',
+        mode='valid',
         transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(
@@ -53,7 +53,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/resnet101_test.h5')
+    storage = ProbStore(path='../input/resnet101_valid.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
