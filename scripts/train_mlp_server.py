@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 
 import config
 from mymodels.mlp import MLP
-from loading import StackingDataset
+from loading import StackingDatasetServer
 
 BATCH_SIZE = 512  # Number of samples in each batch
 
@@ -44,8 +44,8 @@ def totensor(features):
 
 def main():
     print('Loading dataset...')
-    dataset = StackingDataset(paths=PATHS, transform=totensor,
-                              meta_path='../input/val.csv')
+    dataset = StackingDatasetServer(paths=PATHS, transform=totensor,
+                                    meta_path='../input/val.csv')
     print('Loaded dataset with length {}'.format(len(dataset)))
     all_ids = np.arange(0, len(dataset), 1)
     ids_train, ids_valid = train_test_split(all_ids, test_size=0.2,
@@ -71,7 +71,7 @@ def main():
 
     # define the loss (criterion) and create an optimizer
     criterion = nn.CrossEntropyLoss(size_average=False)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
 
     for epoch in range(EPOCHS):  # epochs loop
         print('Epoch {}/{}'.format(epoch, EPOCHS - 1))
