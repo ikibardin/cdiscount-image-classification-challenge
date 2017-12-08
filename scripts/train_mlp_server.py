@@ -13,7 +13,7 @@ import config
 from mymodels.mlp import MLP
 from loading import StackingDatasetServer
 
-BATCH_SIZE = 512  # Number of samples in each batch
+BATCH_SIZE = 1024  # Number of samples in each batch
 
 INITIAL_EPOCH = 0
 EPOCHS = 1000  # Number of epochs to train the network
@@ -33,7 +33,7 @@ def make_loader(ids, dataset):
         batch_size=BATCH_SIZE,
         shuffle=False,
         sampler=sampler,
-        num_workers=0
+        num_workers=7
     )
     return loader
 
