@@ -219,3 +219,64 @@ class StackingDataset(Dataset):
             assert id_ == id1
             assert img_num == num1
         return id_, img_num
+
+
+class StackingDatasetServer(Dataset):
+    def __init__(self, paths, meta_path, transform=None):
+        self._tables = self._load_tables(paths)
+        self._meta = pd.read_csv(meta_path)
+        self._meta = self._meta[self._meta['train'] == 0.]
+        self._length = self._meta.shape[0]
+        self._transform = transform
+        self._cat_to_label = {v: k for k, v in LABEL_TO_CAT.items()}
+
+    def __len__(self):
+        return self._length
+
+    def __getitem__(self, item):
+        id_, img_num = self._select_id_and_img_num(item)
+        features = []
+        for table in self._tables:
+            features.append(
+                np.array(table.iloc[item].drop(['pr_id', 'img_num'],
+                                               inplace=False)))
+        features = np.hstack(features)
+        if self._transform is not None:
+            features = self._transform(features)
+        tmp = self._meta[self._meta.id == id_]
+        cat = tmp[tmp.image_numb == img_num].cat.iloc[0]  # topkek xD ))))
+        label = self._cat_to_label[cat]
+        return id_, img_num, features, label
+
+    @staticmethod
+    def _load_single_table(store):
+        tmp = []
+        keys = store.keys()
+        for key in keys:
+            tmp.append(store.select(key))
+        table = pd.concat(tmp, ignore_index=True)
+        return table
+
+    @staticmethod
+    def _load_tables(paths):
+        tables = []
+        for path in paths:
+            print('Loading storage at {}'.format(path))
+            storage = pd.HDFStore(path)
+            tables.append(StackingDatasetServer._load_single_table(storage))
+            print('Success, loaded table of shape {}.'.format(tables[0].shape))
+        return tables
+
+    def _select_id_and_img_num(self, index):
+        assert len(self._tables) > 0
+        ids = []
+        img_nums = []
+        for table in self._tables:
+            ids.append(table.pr_id.iloc[index])
+            img_nums.append(table.img_num.iloc[index])
+        id_ = ids[0]
+        img_num = img_nums[0]
+        for id1, num1 in zip(ids, img_nums):
+            assert id_ == id1
+            assert img_num == num1
+        return id_, img_num
