@@ -15,6 +15,8 @@ from loading import StackingDatasetServer
 
 BATCH_SIZE = 1024  # Number of samples in each batch
 
+HIDDEN_LAYER = 256
+
 INITIAL_EPOCH = 0
 EPOCHS = 1000  # Number of epochs to train the network
 
@@ -67,7 +69,8 @@ def main():
         PHASE_VAL: len(ids_valid)
     }
 
-    model = MLP(config.CAT_COUNT * len(PATHS), config.CAT_COUNT)
+    model = MLP(config.CAT_COUNT * len(PATHS),
+                config.CAT_COUNT, n_hidden_layer=HIDDEN_LAYER)
 
     # define the loss (criterion) and create an optimizer
     criterion = nn.CrossEntropyLoss(size_average=False)

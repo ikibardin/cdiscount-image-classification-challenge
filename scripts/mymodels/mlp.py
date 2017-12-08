@@ -4,11 +4,11 @@ import torch.nn.functional as F
 
 
 class MLP(nn.Module):
-    def __init__(self, n_features, n_classes):
+    def __init__(self, n_features, n_classes, n_hidden_layer):
         super(MLP, self).__init__()
-        self.layer1 = nn.Linear(n_features, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, n_classes)
+        self.layer1 = nn.Linear(n_features, n_hidden_layer)
+        self.layer2 = nn.Linear(n_hidden_layer, n_hidden_layer)
+        self.layer3 = nn.Linear(n_hidden_layer, n_classes)
 
     def forward(self, x, training=True):
         # a neural network with 2 hidden layers
