@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
 import pandas as pd
+from scipy.stats import gmean
 from tqdm import tqdm
 
 import config
@@ -20,15 +21,16 @@ TEST_BATCH_SIZE = 256
 NORM_MEAN = [0.49139968, 0.48215827, 0.44653124]
 NORM_STD = [0.24703233, 0.24348505, 0.26158768]
 
+
 def train():
-    # ids_test = pd.read_csv(config.TEST_IDS_PATH)
-    ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
-    ids_test = ids_valid
+    ids_test = pd.read_csv(config.TEST_IDS_PATH)
+    # ids_valid = pd.read_csv(config.ARTUR_VALID_PATH)
+    # ids_test = ids_valid
     print('Predicting on {} samples.'.format(ids_test.shape[0]))
 
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
-        mode='valid',
+        mode='test',
         transform=tta_predict.tta_transform(NORM_MEAN, NORM_STD))
 
     test_loader = torch.utils.data.DataLoader(
@@ -52,7 +54,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/dense_valid_corr.h5')
+    storage = ProbStore(path='../input/dense_test_GMEAN.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
@@ -71,8 +73,8 @@ def predict(model, dataloader, test_size):
         df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
                            index=None)
         df2 = pd.DataFrame(
-            proba.data.view(-1, 10, config.CAT_COUNT).mean(
-                dim=1).numpy().astype('float16'),
+            gmean(proba.data.view(-1, 10, config.CAT_COUNT).numpy().astype(
+                'float16'), axis=1),
             columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)
