@@ -1,9 +1,11 @@
+import numpy as np
+import math
 import torch
 from torchvision import transforms
 from torchvision.transforms import Lambda, ToTensor
-# import torch.nn.functional as F
 import cv2
 import numbers
+import random
 
 try:
     import accimage
@@ -196,6 +198,53 @@ def no_tta_trans(norm_mean, norm_std):
     ])
 
 
+def random_shift_scale_rotate(image, shift_limit=[-0.0625, 0.0625],
+                              scale_limit=[1 / 1.2, 1.2],
+                              rotate_limit=[-15, 15], aspect_limit=[1, 1],
+                              size=[-1, -1], borderMode=cv2.BORDER_REFLECT_101,
+                              u=0.5):
+    # cv2.BORDER_REFLECT_101  cv2.BORDER_CONSTANT
+
+    if random.random() < u:
+        height, width, channel = image.shape
+        if size[0] == -1: size[0] = width
+        if size[1] == -1: size[1] = height
+
+        angle = random.uniform(rotate_limit[0], rotate_limit[1])  # degree
+        scale = random.uniform(scale_limit[0], scale_limit[1])
+        aspect = random.uniform(aspect_limit[0], aspect_limit[1])
+        sx = scale * aspect / (aspect ** 0.5)
+        sy = scale / (aspect ** 0.5)
+        dx = round(random.uniform(shift_limit[0], shift_limit[1]) * width)
+        dy = round(random.uniform(shift_limit[0], shift_limit[1]) * height)
+
+        cc = math.cos(angle / 180 * math.pi) * (sx)
+        ss = math.sin(angle / 180 * math.pi) * (sy)
+        rotate_matrix = np.array([[cc, -ss], [ss, cc]])
+
+        box0 = np.array([[0, 0], [width, 0], [width, height], [0, height], ])
+        box1 = box0 - np.array([width / 2, height / 2])
+        box1 = np.dot(box1, rotate_matrix.T) + np.array(
+            [width / 2 + dx, height / 2 + dy])
+
+        box0 = box0.astype(np.float32)
+        box1 = box1.astype(np.float32)
+        mat = cv2.getPerspectiveTransform(box0, box1)
+
+        image = cv2.warpPerspective(image, mat, (size[0], size[1]),
+                                    flags=cv2.INTER_LINEAR,
+                                    borderMode=borderMode, borderValue=(0, 0,
+                                                                        0,))  # cv2.BORDER_CONSTANT, borderValue = (0, 0, 0))  #cv2.BORDER_REFLECT_101
+
+    return image
+
+
+def random_horizontal_flip(image, u=0.5):
+    if random.random() < u:
+        image = cv2.flip(image, 1)  # np.fliplr(img) ##left-right
+    return image
+
+
 def _pytorch_image_to_tensor_transform(image):
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
@@ -221,3 +270,38 @@ def _image_to_tensor_transform(image):
 
 def frogs_transform():
     return _image_to_tensor_transform
+
+
+def train_augment(image):
+    if random.random() < 0.5:
+        image = random_shift_scale_rotate(image,
+                                          # shift_limit  = [0, 0],
+                                          shift_limit=[-0.06, 0.06],
+                                          scale_limit=[0.9, 1.2],
+                                          rotate_limit=[-10, 10],
+                                          aspect_limit=[1, 1],
+                                          # size=[1,299],
+                                          borderMode=cv2.BORDER_REFLECT_101,
+                                          u=1)
+    else:
+        pass
+
+    # flip  random ---------
+    image = random_horizontal_flip(image, u=0.5)
+
+    tensor = _image_to_tensor_transform(image)
+    return tensor
+
+
+def _frogs_get_tta10(image):
+    tensors = []
+    for i in range(10):
+        tensors.append(train_augment(image))
+    return tensors
+
+
+def frogs_tta():
+    return transforms.Compose([
+        _frogs_get_tta10,
+        Lambda(lambda crops: torch.stack([crops]))
+    ])
