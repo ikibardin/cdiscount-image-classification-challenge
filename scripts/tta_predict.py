@@ -303,5 +303,5 @@ def _frogs_get_tta10(image):
 def frogs_tta():
     return transforms.Compose([
         _frogs_get_tta10,
-        Lambda(lambda crops: torch.stack([crops]))
+        Lambda(lambda crops: torch.stack(crops))
     ])

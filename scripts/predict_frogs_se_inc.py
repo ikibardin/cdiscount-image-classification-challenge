@@ -34,7 +34,7 @@ def train():
         test_dataset,
         batch_size=TEST_BATCH_SIZE,
         shuffle=False,
-        num_workers=0
+        num_workers=1
     )
     assert torch.cuda.is_available()
     # print(len(test_loader))
@@ -60,7 +60,8 @@ def predict(model, dataloader, test_size):
         assert torch.cuda.is_available()
 
         inputs = Variable(inputs.cuda(), volatile=True)
-        bs, c, h, w = inputs.size()
+        # print(inputs.size())
+        bs, ncrops, c, h, w = inputs.size()
         # assert bs == TEST_BATCH_SIZE and ncrops == 10
         outputs = model(inputs.view(-1, c, h, w))
         proba = nn.functional.softmax(outputs.data).cpu()
