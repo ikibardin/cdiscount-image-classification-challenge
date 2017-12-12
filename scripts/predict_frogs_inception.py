@@ -28,7 +28,7 @@ def train():
     test_dataset = loading.CdiscountDatasetPandas(
         img_ids_df=ids_test,
         mode='test',
-        transform=tta_predict.frogs_transform())
+        transform=tta_predict.frogs_tta())
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -51,7 +51,7 @@ def predict(model, dataloader, test_size):
     columns2 = []
     for i in range(1, config.CAT_COUNT + 1):
         columns2.append(str(i))
-    storage = ProbStore(path='../input/inc3_test_xDDD.h5')
+    storage = ProbStore(path='../input/inc3_test_TTA.h5')
     model.train(False)
     for data in tqdm(dataloader, total=test_size):
         # get the inputs
@@ -60,9 +60,9 @@ def predict(model, dataloader, test_size):
         assert torch.cuda.is_available()
 
         inputs = Variable(inputs.cuda(), volatile=True)
-        bs, c, h, w = inputs.size()
+        bs, ncrops, c, h, w = inputs.size()
         # assert bs == TEST_BATCH_SIZE and ncrops == 10
-        outputs = model(inputs)
+        outputs = model(inputs.view(-1, c, h, w))
         proba = nn.functional.softmax(outputs.data).cpu()
 
         two_cols = np.array(list(zip(product_ids, image_numbers)),
@@ -70,7 +70,9 @@ def predict(model, dataloader, test_size):
 
         df1 = pd.DataFrame(two_cols, dtype=np.int32, columns=columns1,
                            index=None)
-        df2 = pd.DataFrame(proba.data.numpy().astype('float16'),
+        df2 = pd.DataFrame(proba.data.view(-1, 10, config.CAT_COUNT).mean(
+                dim=1).numpy().astype(
+                'float16'),
                            columns=columns2, index=None, dtype=np.float16)
         df = pd.concat([df1, df2], axis=1)
         storage.saveProbs(df)
