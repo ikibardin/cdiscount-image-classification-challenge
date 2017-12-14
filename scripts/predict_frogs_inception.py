@@ -15,7 +15,7 @@ from probs_saver import ProbStore
 
 LOAD_WEIGHTS_FROM = '../frogs-code/release/trained_models/LB=0.69565_inc3_00075000_model.pth'
 
-TEST_BATCH_SIZE = 256
+TEST_BATCH_SIZE = 128
 
 NORM_MEAN = [0.485, 0.456, 0.406]
 NORM_STD = [0.229, 0.224, 0.225]
