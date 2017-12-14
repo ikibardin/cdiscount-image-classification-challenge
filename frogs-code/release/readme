@@ -1,9 +1,0 @@
-1. refer to "training_code" for details of augmentation and data for train split. 
-These files are from my starter kit. https://www.kaggle.com/c/cdiscount-image-classification-challenge/discussion/40498
-
-They should contain enough information for your future work. If there is anything unclear, please ask at 
-the forum or refer to the start kit.
-
-
-2. refer to "demo_code" for details of how to apply model to test an image. e.g. how to normalise input image with
-mean and std values. "label_to_cat_id" maps the class label to the cat_id.
